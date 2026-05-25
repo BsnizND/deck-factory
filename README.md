@@ -80,6 +80,7 @@ The workflow should support:
 - [docs/idea.md](docs/idea.md): the fuller product concept.
 - [docs/architecture.md](docs/architecture.md): proposed system shape and module boundaries.
 - [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
+- [docs/execution-plan.md](docs/execution-plan.md): ordered remaining work to finish the project.
 - [docs/openclaw-integration.md](docs/openclaw-integration.md): the plan for making Deck Factory portable for OpenClaw users.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
 
