@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.template-registry.v1",
+  "type": "object",
+  "required": ["version", "templates"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "templateId",
+          "displayName",
+          "sourceTemplateDeckPath",
+          "sourceContentHash",
+          "extractorVersion",
+          "profileSchemaVersion",
+          "cachedProfilePath",
+          "preparationStatus",
+          "supportedArchetypes",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "templateId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "displayName": { "type": "string", "minLength": 1 },
+          "sourceTemplateDeckPath": { "type": "string", "minLength": 1 },
+          "sourceContentHash": { "type": "string", "minLength": 64 },
+          "extractorVersion": { "type": "string", "minLength": 1 },
+          "profileSchemaVersion": { "type": "string", "minLength": 1 },
+          "cachedProfilePath": { "type": "string", "minLength": 1 },
+          "preparationStatus": { "enum": ["ready", "needs-prep", "unsupported"] },
+          "supportedArchetypes": { "type": "array", "items": { "type": "string" } },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        }
+      }
+    }
+  }
+}

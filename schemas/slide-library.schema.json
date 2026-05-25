@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.slide-library.v1",
+  "type": "object",
+  "required": [
+    "version",
+    "styleId",
+    "libraryId",
+    "displayName",
+    "sourceLibraryDeckPath",
+    "sourceContentHash",
+    "extractorVersion",
+    "slides",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "styleId": { "type": "string" },
+    "libraryId": { "type": "string" },
+    "displayName": { "type": "string" },
+    "sourceLibraryDeckPath": { "type": "string" },
+    "sourceContentHash": { "type": "string" },
+    "extractorVersion": { "type": "string" },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "slideId",
+          "displayName",
+          "kind",
+          "sourceSlideNumber",
+          "sourceStableSlideId",
+          "tags",
+          "supportedArchetypes",
+          "insertionRules",
+          "requiredFields",
+          "optionalFields",
+          "lockedElements",
+          "editableElements",
+          "thumbnailPath",
+          "fingerprint",
+          "usageNotes"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "slideId": { "type": "string" },
+          "displayName": { "type": "string" },
+          "kind": { "enum": ["full-built", "parameterized", "pattern", "appendix"] },
+          "sourceSlideNumber": { "type": "number" },
+          "sourceStableSlideId": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "supportedArchetypes": { "type": "array", "items": { "type": "string" } },
+          "insertionRules": { "type": "array", "items": { "type": "string" } },
+          "requiredFields": { "type": "array", "items": { "type": "string" } },
+          "optionalFields": { "type": "array", "items": { "type": "string" } },
+          "lockedElements": { "type": "array", "items": { "type": "string" } },
+          "editableElements": { "type": "array", "items": { "type": "string" } },
+          "thumbnailPath": { "type": ["string", "null"] },
+          "fingerprint": { "type": "string" },
+          "usageNotes": { "type": "string" }
+        }
+      }
+    },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" }
+  }
+}

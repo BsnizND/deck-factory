@@ -1,0 +1,23 @@
+{
+  "version": "deck-factory.template-registry.v1",
+  "templates": [
+    {
+      "templateId": "snizco-agency",
+      "displayName": "Snizco Agency",
+      "sourceTemplateDeckPath": "samples/snizco-agency/template.pptx",
+      "sourceContentHash": "df5fbc4e21285fedc081e23f584f78c9cdb8effe5a4de3255d1f8df2fcf0b6f5",
+      "extractorVersion": "deck-factory.extractor.v0",
+      "profileSchemaVersion": "deck-factory.template-profile.v1",
+      "cachedProfilePath": "registry/profiles/snizco-agency.template-profile.json",
+      "preparationStatus": "ready",
+      "supportedArchetypes": [
+        "title",
+        "content",
+        "two-column",
+        "chart"
+      ],
+      "createdAt": "2026-05-25T06:46:11.870Z",
+      "updatedAt": "2026-05-25T06:46:11.870Z"
+    }
+  ]
+}

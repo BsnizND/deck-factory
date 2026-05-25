@@ -6,9 +6,9 @@ The core bet is simple: great decks should not be generated as disposable images
 
 ## Status
 
-Deck Factory is at the concept and architecture stage. This repo is intentionally public early so the contract can be shaped in the open before implementation hardens.
+Deck Factory is in early implementation. The repo currently has a TypeScript CLI scaffold, schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, and an initial editable PPTX build path.
 
-No production renderer exists here yet. Until the render and QA loop exists, this project should fail closed rather than pretending a deck is ready.
+It is not production-ready yet. Full screenshot rasterization, visual QA, OpenClaw planner/reviewer wiring, and repair loops still need to be completed before generated decks should be treated as client-ready.
 
 ## The Pipeline
 

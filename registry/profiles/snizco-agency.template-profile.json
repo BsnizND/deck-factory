@@ -1,0 +1,91 @@
+{
+  "version": "deck-factory.template-profile.v1",
+  "templateId": "snizco-agency",
+  "sourceTemplateDeckPath": "samples/snizco-agency/template.pptx",
+  "sourceFileRole": "template-deck",
+  "sourceContentHash": "df5fbc4e21285fedc081e23f584f78c9cdb8effe5a4de3255d1f8df2fcf0b6f5",
+  "extractorVersion": "deck-factory.extractor.v0",
+  "slideSize": {
+    "width": 12192000,
+    "height": 6858000
+  },
+  "themeColors": [],
+  "themeFonts": [],
+  "masters": [],
+  "layouts": [
+    {
+      "id": "title",
+      "name": "title",
+      "sourceSlide": 1
+    },
+    {
+      "id": "content",
+      "name": "content",
+      "sourceSlide": 2
+    },
+    {
+      "id": "two-column",
+      "name": "two-column",
+      "sourceSlide": 3
+    },
+    {
+      "id": "chart",
+      "name": "chart",
+      "sourceSlide": 4
+    }
+  ],
+  "representativeSlides": [
+    {
+      "slideNumber": 1,
+      "title": "title",
+      "notes": null
+    },
+    {
+      "slideNumber": 2,
+      "title": "content",
+      "notes": null
+    },
+    {
+      "slideNumber": 3,
+      "title": "two-column",
+      "notes": null
+    },
+    {
+      "slideNumber": 4,
+      "title": "chart",
+      "notes": null
+    }
+  ],
+  "placeholders": [],
+  "shapes": [],
+  "detectedPatterns": [
+    {
+      "name": "title",
+      "confidence": 0.9,
+      "evidence": "Found DF_LAYOUT tag on slide 1"
+    },
+    {
+      "name": "content",
+      "confidence": 0.9,
+      "evidence": "Found DF_LAYOUT tag on slide 2"
+    },
+    {
+      "name": "two-column",
+      "confidence": 0.9,
+      "evidence": "Found DF_LAYOUT tag on slide 3"
+    },
+    {
+      "name": "chart",
+      "confidence": 0.9,
+      "evidence": "Found DF_LAYOUT tag on slide 4"
+    }
+  ],
+  "preparationStatus": "ready",
+  "preparationFindings": [
+    {
+      "severity": "info",
+      "message": "Template deck has enough structure for initial extraction."
+    }
+  ],
+  "warnings": []
+}

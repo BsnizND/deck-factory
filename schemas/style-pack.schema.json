@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.style-pack.v1",
+  "type": "object",
+  "required": [
+    "version",
+    "styleId",
+    "displayName",
+    "templateId",
+    "brandVoice",
+    "defaultAudience",
+    "supportedArchetypes",
+    "slideLibraries",
+    "layoutMap",
+    "qaStrictness",
+    "fallbackPolicy"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "styleId": { "type": "string" },
+    "displayName": { "type": "string" },
+    "templateId": { "type": "string" },
+    "brandVoice": { "type": "string" },
+    "defaultAudience": { "type": "string" },
+    "supportedArchetypes": { "type": "array", "items": { "type": "string" } },
+    "slideLibraries": { "type": "array", "items": { "type": "string" } },
+    "layoutMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "colorUsageNotes": { "type": "string" },
+    "typographyNotes": { "type": "string" },
+    "chartStyleNotes": { "type": "string" },
+    "imageStyleNotes": { "type": "string" },
+    "qaStrictness": { "enum": ["standard", "strict"] },
+    "fallbackPolicy": { "enum": ["fail-closed", "allow-generated-substitute"] }
+  }
+}

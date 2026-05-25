@@ -1,0 +1,27 @@
+{
+  "version": "deck-factory.style-pack.v1",
+  "styleId": "snizco-agency",
+  "displayName": "Snizco Agency",
+  "templateId": "snizco-agency",
+  "brandVoice": "clear, agency-grade, evidence-led",
+  "defaultAudience": "executive",
+  "supportedArchetypes": [
+    "title",
+    "content",
+    "two-column",
+    "chart"
+  ],
+  "slideLibraries": [],
+  "layoutMap": {
+    "title": "title",
+    "content": "content",
+    "two-column": "two-column",
+    "chart": "chart"
+  },
+  "colorUsageNotes": "",
+  "typographyNotes": "",
+  "chartStyleNotes": "",
+  "imageStyleNotes": "",
+  "qaStrictness": "standard",
+  "fallbackPolicy": "fail-closed"
+}

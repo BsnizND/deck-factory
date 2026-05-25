@@ -1,0 +1,45 @@
+{
+  "version": "deck-factory.skill-deck-handoff.v1",
+  "sourceSkill": "5c-research-report",
+  "sourceRunId": "sample-fixture",
+  "reportType": "5c-research-report",
+  "subject": "Chick-fil-A",
+  "audience": "executive",
+  "objective": "Create a concise 5C research deck. This is a sample fixture, not live research.",
+  "preferredStyleId": "snizco-agency",
+  "sections": [
+    {
+      "id": "company",
+      "title": "Company",
+      "summary": "Sample company context."
+    },
+    {
+      "id": "customers",
+      "title": "Customers",
+      "summary": "Sample customer context."
+    },
+    {
+      "id": "competitors",
+      "title": "Competitors",
+      "summary": "Sample competitor context."
+    }
+  ],
+  "findings": [
+    {
+      "id": "f1",
+      "section": "company",
+      "text": "Sample fixture finding; not a live research claim."
+    }
+  ],
+  "evidence": [],
+  "citations": [],
+  "requestedCharts": [],
+  "requestedTables": [],
+  "requestedLibrarySlides": [
+    "about-us",
+    "methodology"
+  ],
+  "assetRefs": [],
+  "sensitivity": "fixture-public",
+  "openQuestions": []
+}

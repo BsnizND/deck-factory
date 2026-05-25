@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.template-profile.v1",
+  "type": "object",
+  "required": [
+    "version",
+    "templateId",
+    "sourceTemplateDeckPath",
+    "sourceFileRole",
+    "sourceContentHash",
+    "extractorVersion",
+    "slideSize",
+    "themeColors",
+    "themeFonts",
+    "masters",
+    "layouts",
+    "representativeSlides",
+    "placeholders",
+    "shapes",
+    "detectedPatterns",
+    "preparationStatus",
+    "preparationFindings",
+    "warnings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "templateId": { "type": "string" },
+    "sourceTemplateDeckPath": { "type": "string" },
+    "sourceFileRole": { "enum": ["template-deck"] },
+    "sourceContentHash": { "type": "string" },
+    "extractorVersion": { "type": "string" },
+    "slideSize": {
+      "type": "object",
+      "required": ["width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": ["number", "null"] },
+        "height": { "type": ["number", "null"] }
+      }
+    },
+    "themeColors": { "type": "array", "items": { "type": "string" } },
+    "themeFonts": { "type": "array", "items": { "type": "string" } },
+    "masters": { "type": "array", "items": { "type": "string" } },
+    "layouts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "sourceSlide": { "type": "number" }
+        }
+      }
+    },
+    "representativeSlides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slideNumber", "title", "notes"],
+        "additionalProperties": false,
+        "properties": {
+          "slideNumber": { "type": "number" },
+          "title": { "type": ["string", "null"] },
+          "notes": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "placeholders": { "type": "array", "items": { "type": "object" } },
+    "shapes": { "type": "array", "items": { "type": "object" } },
+    "detectedPatterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "confidence", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "confidence": { "type": "number" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "preparationStatus": { "enum": ["ready", "needs-prep", "unsupported"] },
+    "preparationFindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "severity": { "enum": ["info", "warning", "error"] },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  }
+}

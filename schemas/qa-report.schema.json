@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.qa-report.v1",
+  "type": "object",
+  "required": [
+    "version",
+    "renderStatus",
+    "slideCountMatch",
+    "rasterizationStatus",
+    "missingAssets",
+    "textOverflowFindings",
+    "clippingFindings",
+    "outOfBoundsFindings",
+    "overlapFindings",
+    "fontSubstitutionWarnings",
+    "contrastWarnings",
+    "screenshotEvaluatorNotes",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "renderStatus": { "enum": ["passed", "failed"] },
+    "slideCountMatch": { "type": "boolean" },
+    "rasterizationStatus": { "enum": ["passed", "failed", "not-run"] },
+    "missingAssets": { "type": "array", "items": { "type": "string" } },
+    "textOverflowFindings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "clippingFindings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "outOfBoundsFindings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "overlapFindings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "fontSubstitutionWarnings": { "type": "array", "items": { "type": "string" } },
+    "contrastWarnings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "screenshotEvaluatorNotes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "status": { "enum": ["passed", "failed"] }
+  }
+}

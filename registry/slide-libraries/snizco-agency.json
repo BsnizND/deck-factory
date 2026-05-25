@@ -1,0 +1,69 @@
+{
+  "version": "deck-factory.slide-library.v1",
+  "styleId": "snizco-agency",
+  "libraryId": "snizco-agency",
+  "displayName": "Snizco Agency Slide Library",
+  "sourceLibraryDeckPath": "samples/snizco-agency/library.pptx",
+  "sourceContentHash": "474947427ddeb090367400509d39291ee6bc9d8f00d904a9175c1a32bd178182",
+  "extractorVersion": "deck-factory.extractor.v0",
+  "slides": [
+    {
+      "slideId": "about-us",
+      "displayName": "about-us",
+      "kind": "full-built",
+      "sourceSlideNumber": 1,
+      "sourceStableSlideId": "slide-1",
+      "tags": [],
+      "supportedArchetypes": [],
+      "insertionRules": [],
+      "requiredFields": [],
+      "optionalFields": [],
+      "lockedElements": [],
+      "editableElements": [],
+      "thumbnailPath": null,
+      "fingerprint": "327c3c9fe58dc5f108b41bf15de95941c4621507beaabd42e8218149f28208d1",
+      "usageNotes": "Found DF_LIBRARY tag about-us"
+    },
+    {
+      "slideId": "methodology",
+      "displayName": "methodology",
+      "kind": "full-built",
+      "sourceSlideNumber": 2,
+      "sourceStableSlideId": "slide-2",
+      "tags": [],
+      "supportedArchetypes": [],
+      "insertionRules": [],
+      "requiredFields": [],
+      "optionalFields": [],
+      "lockedElements": [],
+      "editableElements": [],
+      "thumbnailPath": null,
+      "fingerprint": "b1a7b9aee643c4f7ab5dd044fd40ed8f3a2720fd730baaa35787b5231137a46f",
+      "usageNotes": "Found DF_LIBRARY tag methodology"
+    },
+    {
+      "slideId": "case-study",
+      "displayName": "case-study",
+      "kind": "parameterized",
+      "sourceSlideNumber": 3,
+      "sourceStableSlideId": "slide-3",
+      "tags": [],
+      "supportedArchetypes": [],
+      "insertionRules": [],
+      "requiredFields": [
+        "client",
+        "challenge",
+        "solution",
+        "result"
+      ],
+      "optionalFields": [],
+      "lockedElements": [],
+      "editableElements": [],
+      "thumbnailPath": null,
+      "fingerprint": "2d538118660f48354e885277a545bd28105704cc0c120e0a8c9b4c5f7a70d5fc",
+      "usageNotes": "Found DF_LIBRARY tag case-study"
+    }
+  ],
+  "createdAt": "2026-05-25T06:46:12.186Z",
+  "updatedAt": "2026-05-25T06:46:12.186Z"
+}

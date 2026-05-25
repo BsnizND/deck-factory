@@ -1,0 +1,62 @@
+{
+  "version": "deck-factory.deck-spec.v1",
+  "deck": {
+    "title": "Sample 5C Research Report",
+    "audience": "executive",
+    "objective": "Demonstrate a mixed generated/library deck.",
+    "tone": "concise and evidence-led",
+    "requestedLength": 5,
+    "speakerNotes": false
+  },
+  "template": {
+    "templateId": "snizco-agency"
+  },
+  "style": {
+    "styleId": "snizco-agency"
+  },
+  "librarySlides": [
+    {
+      "slideId": "about-us"
+    }
+  ],
+  "openclaw": {
+    "plannerAgent": "deck-factory-planner",
+    "reviewerAgent": "deck-factory-reviewer",
+    "polisherAgent": "deck-factory-polisher",
+    "sessionPrefix": "deck-factory-sample",
+    "requiredModelRuntime": "openclaw",
+    "maxRepairAttempts": 1
+  },
+  "assets": [],
+  "slides": [
+    {
+      "id": "s1",
+      "source": "generated",
+      "layout": "title",
+      "purpose": "Introduce the report.",
+      "title": "Chick-fil-A 5C Research Report",
+      "content": [
+        {
+          "type": "text",
+          "text": "Sample fixture, not live research."
+        }
+      ],
+      "citations": [],
+      "constraints": {}
+    },
+    {
+      "id": "s2",
+      "source": "library",
+      "layout": "about-us",
+      "librarySlideId": "about-us",
+      "purpose": "Insert standard agency context.",
+      "title": "About Snizco Agency",
+      "content": [],
+      "citations": [],
+      "constraints": {}
+    }
+  ],
+  "constraints": {
+    "fixture": true
+  }
+}
