@@ -62,6 +62,7 @@ export async function registerSlideLibrary(options: {
     existing.sourceContentHash === sourceContentHash &&
     existing.extractorVersion === EXTRACTOR_VERSION
   ) {
+    await ensureStyleReferencesLibrary(style, options.styleId);
     return existing;
   }
 
@@ -81,9 +82,7 @@ export async function registerSlideLibrary(options: {
   };
   await validateSchema("slide-library", library);
   await writeJsonFile(filePath, library);
-  if (!style.slideLibraries.includes(options.styleId)) {
-    await saveStylePack({ ...style, slideLibraries: [...style.slideLibraries, options.styleId].sort() });
-  }
+  await ensureStyleReferencesLibrary(style, options.styleId);
   return library;
 }
 
@@ -143,4 +142,10 @@ async function assertPptx(filePath: string, role: string): Promise<void> {
 
 function slideNumber(file: string): number {
   return Number(file.match(/slide(\d+)\.xml$/)?.[1] ?? "0");
+}
+
+async function ensureStyleReferencesLibrary(style: Awaited<ReturnType<typeof loadStylePack>>, libraryId: string): Promise<void> {
+  if (!style.slideLibraries.includes(libraryId)) {
+    await saveStylePack({ ...style, slideLibraries: [...style.slideLibraries, libraryId].sort() });
+  }
 }

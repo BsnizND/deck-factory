@@ -11,7 +11,9 @@
     "two-column",
     "chart"
   ],
-  "slideLibraries": [],
+  "slideLibraries": [
+    "snizco-agency"
+  ],
   "layoutMap": {
     "title": "title",
     "content": "content",

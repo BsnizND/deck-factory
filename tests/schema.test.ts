@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { countPptxSlides } from "../src/qa/qa-deck.js";
 import { readJsonFile } from "../src/util/fs.js";
 import { validateSchema } from "../src/schema/validate.js";
 
@@ -15,5 +16,9 @@ describe("schema fixtures", () => {
 
   it("rejects invalid handoffs", async () => {
     await expect(validateSchema("skill-deck-handoff", { version: "bad" })).rejects.toThrow(/Schema validation failed/);
+  });
+
+  it("counts slides in the sample template deck", async () => {
+    await expect(countPptxSlides("samples/snizco-agency/template.pptx")).resolves.toBe(4);
   });
 });

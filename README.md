@@ -6,9 +6,9 @@ The core bet is simple: great decks should not be generated as disposable images
 
 ## Status
 
-Deck Factory is in early implementation. The repo currently has a TypeScript CLI scaffold, schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, and an initial editable PPTX build path.
+Deck Factory is in early implementation. The repo currently has a TypeScript CLI scaffold, schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, an editable PPTX build path, a fail-closed QA report, and a first `run` command for plan/render/QA orchestration.
 
-It is not production-ready yet. Full screenshot rasterization, visual QA, OpenClaw planner/reviewer wiring, and repair loops still need to be completed before generated decks should be treated as client-ready.
+It is not production-ready yet. Screenshot rasterization requires LibreOffice (`soffice` or `libreoffice`) on `PATH`, and OpenClaw screenshot reviewer/repair loops still need to be completed before generated decks should be treated as client-ready.
 
 ## The Pipeline
 
@@ -81,6 +81,26 @@ The workflow should support:
 - [docs/architecture.md](docs/architecture.md): proposed system shape and module boundaries.
 - [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
+
+## Current CLI
+
+```bash
+npm install
+npm run generate:samples
+npm run cli -- doctor
+npm run cli -- templates register --id snizco-agency --name "Snizco Agency" --template-deck samples/snizco-agency/template.pptx
+npm run cli -- libraries register --style snizco-agency --library-deck samples/snizco-agency/library.pptx
+npm run cli -- build --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
+npm run cli -- qa --deck artifacts/sample-build/deck.pptx --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
+```
+
+The end-to-end entrypoint is:
+
+```bash
+npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c
+```
+
+`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
 
 ## License
 

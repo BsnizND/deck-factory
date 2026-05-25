@@ -5,6 +5,8 @@ import { DeckFactoryError } from "../errors.js";
 import { registerBuildCommand } from "./commands/build.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerLibrariesCommand } from "./commands/libraries.js";
+import { registerQaCommand } from "./commands/qa.js";
+import { registerRunCommand } from "./commands/run.js";
 import { registerTemplatesCommand } from "./commands/templates.js";
 import { registerValidateCommand } from "./commands/validate.js";
 
@@ -19,6 +21,8 @@ registerDoctorCommand(program);
 registerBuildCommand(program);
 registerTemplatesCommand(program);
 registerLibrariesCommand(program);
+registerQaCommand(program);
+registerRunCommand(program);
 registerValidateCommand(program);
 
 program.exitOverride();
