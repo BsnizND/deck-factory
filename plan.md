@@ -168,8 +168,72 @@ The plan for "Snizco Agency style" is:
 1. Register the Snizco Agency `.pptx` once.
 2. Extract and validate its template profile once.
 3. Save a style pack that maps semantic deck needs to Snizco layouts.
-4. Let Jay and other skills reference the style by name.
-5. Reuse the cached profile until the template or extraction code changes.
+4. Register any reusable slide library that belongs to the style.
+5. Let Jay and other skills reference the style by name.
+6. Reuse the cached profile and slide library until the source files or extraction code change.
+
+### Slide Libraries
+
+Each style can have a slide library.
+
+A slide library is a curated set of reusable slides and slide patterns that can be inserted into generated decks alongside newly generated slides. This is required for agency and enterprise styles where some slides are standardized, such as "About Us", credentials, methodology, process, team, case study, legal disclaimer, or standard service offering slides.
+
+Example:
+
+```text
+Burson style
+  -> Burson template profile
+  -> Burson style pack
+  -> Burson slide library
+       - about-us
+       - methodology
+       - global-network
+       - sector-expertise
+       - credentials
+       - case-study
+       - legal-disclaimer
+```
+
+Slide library entries can be:
+
+- **Full-built slides:** complete slides that are inserted mostly unchanged, such as `about-us` or `legal-disclaimer`.
+- **Parameterized library slides:** reusable slides with named editable fields, such as a case-study slide with `{{client}}`, `{{challenge}}`, `{{solution}}`, and `{{result}}`.
+- **Pattern slides:** partially built slide structures that should be populated by Deck Factory, such as a three-column framework, quote page, timeline, or market-map slide.
+- **Appendix slides:** reusable source, methodology, glossary, or notes slides.
+
+The planner should decide for each output slide whether to:
+
+- generate the slide from the deck spec using the style/template
+- select a full-built library slide
+- select and populate a parameterized library slide
+- use a pattern slide as the base for generated content
+
+The generated deck can therefore include both generated slides and selected library slides.
+
+Slide library selection should be deterministic enough to audit but agentic enough to be useful:
+
+- deterministic code indexes library metadata, fingerprints source slides, validates required fields, and inserts selected slides
+- OpenClaw planner/reviewer decides which library slides are appropriate for the brief, report type, audience, and style
+
+Deck Factory must not re-extract a slide library every run. Like template profiles, slide libraries should be registered, fingerprinted, cached, and refreshed only when source files or extractor versions change.
+
+Library entries should support tags:
+
+- style id
+- slide id
+- display name
+- slide type
+- audience
+- report archetype
+- insertion rules
+- required fields
+- optional fields
+- source deck path
+- source slide number or stable slide id
+- fingerprint
+- last extracted timestamp
+
+If a requested or planner-selected library slide is missing, stale, unsupported, or missing required fields, Deck Factory should fail closed or ask for a substitute; it should not silently replace it with a generated approximation.
 
 ### Skill-To-Deck Composition
 
@@ -187,10 +251,11 @@ That means:
 2. Jay identifies `Snizco Agency style` as the registered Deck Factory style/template.
 3. Jay runs the 5C research skill through OpenClaw.
 4. The 5C skill returns a structured deck handoff, not just prose.
-5. Deck Factory uses the cached Snizco Agency template profile.
-6. Deck Factory plans and renders the deck.
-7. Deck Factory runs screenshot QA and repair.
-8. Jay returns the final `deck.pptx`.
+5. Deck Factory uses the cached Snizco Agency template profile and slide library.
+6. Deck Factory plans which slides are generated and which are selected from the library.
+7. Deck Factory renders the deck.
+8. Deck Factory runs screenshot QA and repair.
+9. Jay returns the final `deck.pptx`.
 
 Other skills should not need to know how to write PowerPoint. They should output a deck-ready handoff contract that Deck Factory can consume.
 
@@ -208,6 +273,7 @@ The handoff contract should include:
 - asset references
 - sensitivity/privacy flags
 - preferred style id, such as `snizco-agency`
+- requested library slides, such as `about-us` or `methodology`
 
 Deck Factory then owns template selection, slide mapping, rendering, screenshot QA, and repair.
 
@@ -308,6 +374,7 @@ deck-factory/
     registry/
       template-registry.ts
       style-pack.ts
+      slide-library.ts
       fingerprint.ts
     qa/
       rasterize.ts
@@ -323,6 +390,12 @@ deck-factory/
     templates.json
     styles/
       snizco-agency.json
+    slide-libraries/
+      burson.json
+      snizco-agency.json
+    source-slides/
+      burson-library.pptx
+      snizco-agency-library.pptx
   openclaw/
     agents/
       deck-factory-planner.json
@@ -358,9 +431,12 @@ The CLI should be small and composable:
 
 ```bash
 deck-factory templates register --id snizco-agency --name "Snizco Agency" --template-deck templates/snizco-agency.pptx
+deck-factory libraries register --style snizco-agency --library-deck libraries/snizco-agency-library.pptx
 deck-factory templates list
 deck-factory templates inspect snizco-agency
 deck-factory templates refresh snizco-agency
+deck-factory libraries list --style snizco-agency
+deck-factory libraries inspect --style snizco-agency about-us
 deck-factory extract --template-deck samples/business-review/template.pptx --out artifacts/business-review/profile
 deck-factory build --spec samples/business-review/deck-spec.json --out artifacts/business-review/run
 deck-factory qa --deck artifacts/business-review/run/deck.pptx --out artifacts/business-review/run/qa
@@ -383,6 +459,12 @@ And the cross-skill path should accept a structured handoff:
 
 ```bash
 deck-factory run --style snizco-agency --handoff artifacts/5c/chick-fil-a/deck-handoff.json --out artifacts/chick-fil-a-5c
+```
+
+Library slides can be requested explicitly:
+
+```bash
+deck-factory run --style burson --brief brief.md --include-library-slide about-us --include-library-slide methodology --out artifacts/burson-report
 ```
 
 Every command should fail closed with a specific missing prerequisite or validation failure.
@@ -517,12 +599,13 @@ Jay should plan:
 1. Use the 5C research skill to produce structured research.
 2. Require that skill to emit a `skill-deck-handoff.json`.
 3. Resolve `Snizco Agency style` through the Deck Factory template registry.
-4. Confirm the registered template profile is current by checking the cached fingerprint.
-5. Run Deck Factory from the handoff and cached style.
-6. Run screenshot QA and repair.
-7. Return only the final `deck.pptx` unless the user asks for evidence.
+4. Confirm the registered template profile and slide library are current by checking cached fingerprints.
+5. Decide whether the report needs standard reusable slides, such as methodology, credentials, or about-us.
+6. Run Deck Factory from the handoff and cached style/library.
+7. Run screenshot QA and repair.
+8. Return only the final `deck.pptx` unless the user asks for evidence.
 
-Jay should not ask the user to re-upload or re-extract the Snizco Agency template if it is already registered and current.
+Jay should not ask the user to re-upload or re-extract the Snizco Agency template or slide library if they are already registered and current.
 
 If the style name is unknown, Jay should say exactly that:
 
@@ -531,6 +614,12 @@ I do not have a registered Deck Factory style named "Snizco Agency" yet. Send me
 ```
 
 If the cached template fingerprint is stale, Jay should refresh the profile automatically if the source file is available. If the source file is missing, Jay should stop and ask for the current template deck.
+
+If a style has a slide library, Jay should use it when the deck type naturally calls for standard slides. For example, a Burson-style deck can include a reusable `about-us` slide and still include newly generated 5C analysis slides. Jay should mention this briefly when useful:
+
+```text
+I found the Burson slide library and will include the standard About Us and Methodology slides, then generate the market/customer/competitor analysis slides from the 5C research.
+```
 
 ## Data Contracts
 
@@ -561,6 +650,7 @@ Each style pack should include:
 - `brandVoice`
 - `defaultAudience`
 - `supportedArchetypes`
+- `slideLibraries`
 - `layoutMap`
 - `colorUsageNotes`
 - `typographyNotes`
@@ -570,6 +660,41 @@ Each style pack should include:
 - `fallbackPolicy`
 
 The style pack is where `Snizco Agency style` becomes a concrete rendering contract.
+
+### Slide Library
+
+Each style can have one or more slide libraries. `slide-library.json` should include:
+
+- `version`
+- `styleId`
+- `libraryId`
+- `displayName`
+- `sourceLibraryDeckPath`
+- `sourceContentHash`
+- `extractorVersion`
+- `slides`
+- `createdAt`
+- `updatedAt`
+
+Each slide library entry should include:
+
+- `slideId`
+- `displayName`
+- `kind`: `full-built`, `parameterized`, `pattern`, or `appendix`
+- `sourceSlideNumber`
+- `sourceStableSlideId`
+- `tags`
+- `supportedArchetypes`
+- `insertionRules`
+- `requiredFields`
+- `optionalFields`
+- `lockedElements`
+- `editableElements`
+- `thumbnailPath`
+- `fingerprint`
+- `usageNotes`
+
+The slide library is where reusable style-specific slides such as `about-us`, `methodology`, `credentials`, and `legal-disclaimer` become addressable deck-building blocks.
 
 ### Template Profile
 
@@ -599,6 +724,7 @@ The style pack is where `Snizco Agency style` becomes a concrete rendering contr
 - `deck`
 - `template`
 - `style`
+- `librarySlides`
 - `openclaw`
 - `assets`
 - `slides`
@@ -616,7 +742,9 @@ The style pack is where `Snizco Agency style` becomes a concrete rendering contr
 Each slide should include:
 
 - `id`
+- `source`: `generated`, `library`, or `library-pattern`
 - `layout`
+- `librarySlideId` when source is `library` or `library-pattern`
 - `purpose`
 - `title`
 - `actionTitle`
@@ -664,6 +792,7 @@ Supported v0 content block types:
 - `citations`
 - `requestedCharts`
 - `requestedTables`
+- `requestedLibrarySlides`
 - `assetRefs`
 - `sensitivity`
 - `openQuestions`
@@ -758,6 +887,7 @@ Deliverables:
 - `qa-report.schema.json`.
 - `template-registry.schema.json`.
 - `style-pack.schema.json`.
+- `slide-library.schema.json`.
 - `skill-deck-handoff.schema.json`.
 - TypeScript types generated or maintained from schemas.
 - One hand-authored sample `deck-spec.json`.
@@ -771,6 +901,7 @@ Acceptance checks:
 - Valid sample handoffs pass schema validation.
 - Invalid sample specs fail with useful errors.
 - Invalid style/template registry entries fail with useful errors.
+- Invalid slide library entries fail with useful errors.
 - Schema tests cover required fields and unknown content block types.
 
 ### Phase 2: Sample Templates
@@ -833,6 +964,7 @@ Deliverables:
 - `deck-factory templates refresh`.
 - Style pack resolution from natural/user-facing style names to template ids.
 - Built-in or sample `snizco-agency` style pack placeholder.
+- Slide library registration and cache metadata for each style.
 
 Acceptance checks:
 
@@ -840,6 +972,27 @@ Acceptance checks:
 - Unknown styles fail with a clear "style not registered" error.
 - Cached template profiles are reused across multiple runs.
 - Forced refresh re-extracts and updates the cached fingerprint.
+- Registered slide libraries are reused across multiple runs.
+- A stale slide library fingerprint triggers refresh or a fail-closed missing-source error.
+
+### Phase 3c: Slide Library Indexing
+
+Deliverables:
+
+- `deck-factory libraries register`.
+- `deck-factory libraries list`.
+- `deck-factory libraries inspect`.
+- Slide-level fingerprints and thumbnails for library entries.
+- Metadata extraction for full-built, parameterized, pattern, and appendix slides.
+- Library prep report for unsupported or ambiguous reusable slides.
+
+Acceptance checks:
+
+- A sample library deck registers under a style.
+- `about-us` and `methodology` library slides can be addressed by id.
+- Full-built slides can be inserted without regeneration.
+- Parameterized slides fail closed when required fields are missing.
+- Pattern slides can be used as a base for generated content.
 
 ### Phase 4: Renderer Adapter
 
@@ -865,6 +1018,7 @@ Deliverables:
 - `deck-factory plan` or internal planning stage backed by `deck-factory-planner`.
 - Prompt/schema for turning a brief and template profile into `deck-spec.json`.
 - Prompt/schema for turning `skill-deck-handoff.json` into `deck-spec.json`.
+- Prompt/schema for choosing generated slides versus library slides.
 - Missing-input detection for assets, data, citations, or brand constraints.
 - OpenClaw worker artifact capture.
 
@@ -875,6 +1029,7 @@ Acceptance checks:
 - Planner names assumptions and missing inputs.
 - Planner output fails closed when it references unknown layouts or missing assets.
 - Planner preserves citations and evidence from the source skill handoff.
+- Planner can select library slides by id and explain why each library slide belongs.
 
 ### Phase 4c: Cross-Skill Deck Handoff
 
@@ -888,6 +1043,7 @@ Deliverables:
 Acceptance checks:
 
 - A sample 5C handoff can produce a deck spec.
+- A sample handoff can request or accept standard library slides.
 - Handoff input is validated before planning.
 - Missing citations, source skill output, or requested assets fail closed.
 - Deck Factory never needs the upstream skill to know PowerPoint internals.
@@ -951,6 +1107,7 @@ Deliverables:
 - OpenClaw planner/reviewer/repair worker calls inside the orchestration.
 - `--style` support for registered styles.
 - `--handoff` support for structured output from upstream skills.
+- `--include-library-slide` support for explicit reusable slides.
 - Final `deck.pptx` copied to the requested output location.
 - Internal evidence retained in the run folder.
 
@@ -959,6 +1116,7 @@ Acceptance checks:
 - A sample run produces a final `deck.pptx`.
 - A second run with the same registered style reuses the cached template profile.
 - A sample 5C handoff renders with `--style snizco-agency`.
+- A generated deck can mix generated slides and inserted library slides.
 - Internal screenshots and QA artifacts exist.
 - User-facing output is not cluttered unless optional evidence output is requested.
 - The command fails closed on missing template, invalid spec, missing assets, rasterization failure, missing OpenClaw worker config, or missing model credentials.
@@ -988,19 +1146,21 @@ V0 is complete when Deck Factory can:
 1. Accept a user-supplied `.pptx` template with representative dummy slides.
 2. Distinguish template decks, reference decks, `.potx` templates, and generated output decks.
 3. Register a template under a reusable style id.
-4. Reuse cached template profiles instead of re-extracting unchanged templates.
-5. Produce a preparation report for templates that are not ready.
-6. Extract a minimal but useful template profile.
-7. Accept a structured handoff from another skill, such as a 5C research skill.
-8. Use OpenClaw worker lanes to plan or revise a semantic deck spec.
-9. Validate a semantic deck spec.
-10. Render a 3 to 5 slide editable deck.
-11. Rasterize every output slide.
-12. Run deterministic QA.
-13. Run OpenClaw-backed screenshot evaluator review.
-14. Repair at least one common failure by changing the deck spec and rerendering.
-15. Deliver `deck.pptx` as the primary user artifact.
-16. Preserve internal evidence for debugging and reproducibility.
+4. Register a slide library under a reusable style id.
+5. Reuse cached template profiles and slide libraries instead of re-extracting unchanged sources.
+6. Produce a preparation report for templates or slide libraries that are not ready.
+7. Extract a minimal but useful template profile.
+8. Accept a structured handoff from another skill, such as a 5C research skill.
+9. Use OpenClaw worker lanes to plan or revise a semantic deck spec.
+10. Validate a semantic deck spec.
+11. Render a 3 to 5 slide editable deck.
+12. Mix generated slides and selected library slides in the same deck.
+13. Rasterize every output slide.
+14. Run deterministic QA.
+15. Run OpenClaw-backed screenshot evaluator review.
+16. Repair at least one common failure by changing the deck spec and rerendering.
+17. Deliver `deck.pptx` as the primary user artifact.
+18. Preserve internal evidence for debugging and reproducibility.
 
 ## Fail-Closed Rules
 
@@ -1012,6 +1172,8 @@ Deck Factory must stop with a concrete error when:
 - a requested style is not registered
 - a registered style points to a missing source template and no cached ready profile exists
 - a cached profile is stale and cannot be refreshed
+- a requested library slide is not registered
+- a selected library slide is unsupported, stale, or missing required parameter fields
 - the template deck is valid PowerPoint but not prepared enough for safe ingestion
 - a skill deck handoff fails schema validation
 - the deck spec fails schema validation
@@ -1035,17 +1197,20 @@ Do not emit placeholder decks, canned screenshots, fake QA reports, mock citatio
 4. Add `deck-factory doctor` with OpenClaw readiness checks.
 5. Define PowerPoint file roles and CLI flags.
 6. Implement `deck-factory templates register/list/inspect/refresh`.
-7. Write the template-preparation guide.
-8. Create sample folder structure and initial sample specs.
-9. Build the simplest Deck Factory-ready `.pptx` sample template.
-10. Register a placeholder `snizco-agency` style.
-11. Implement template extraction, fingerprinting, cache reuse, and `template-prep-report.md`.
-12. Implement OpenClaw JSON-worker wrapper.
-13. Implement OpenClaw planner worker for `deck-spec.json`.
-14. Implement the skill handoff contract with a sample 5C handoff.
-15. Implement the `pptx-automizer` adapter.
-16. Render the first sample `deck.pptx`.
-17. Add rasterization and deterministic QA.
-18. Add OpenClaw screenshot evaluator review.
-19. Add OpenClaw-backed spec-first repair loop.
-20. Wrap the whole path in `deck-factory run --style ... --handoff ...`.
+7. Implement `deck-factory libraries register/list/inspect`.
+8. Write the template and slide-library preparation guides.
+9. Create sample folder structure and initial sample specs.
+10. Build the simplest Deck Factory-ready `.pptx` sample template.
+11. Build a small sample slide library with `about-us` and `methodology` slides.
+12. Register a placeholder `snizco-agency` style.
+13. Implement template extraction, fingerprinting, cache reuse, and `template-prep-report.md`.
+14. Implement slide library indexing, fingerprinting, cache reuse, and library prep reports.
+15. Implement OpenClaw JSON-worker wrapper.
+16. Implement OpenClaw planner worker for `deck-spec.json`.
+17. Implement the skill handoff contract with a sample 5C handoff.
+18. Implement the `pptx-automizer` adapter.
+19. Render the first sample `deck.pptx` with both generated and library slides.
+20. Add rasterization and deterministic QA.
+21. Add OpenClaw screenshot evaluator review.
+22. Add OpenClaw-backed spec-first repair loop.
+23. Wrap the whole path in `deck-factory run --style ... --handoff ...`.
