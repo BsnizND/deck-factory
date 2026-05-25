@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fail } from "../errors.js";
+import { normalizePowerPointPackage } from "../powerpoint/pptx-package.js";
 import { inspectTemplate } from "../registry/template-registry.js";
 import { loadSlideLibrary } from "../registry/slide-library.js";
 import { loadStylePack } from "../registry/style-pack.js";
@@ -121,6 +122,7 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
   }
 
   await pres.write("deck.pptx");
+  await normalizePowerPointPackage(deckPath);
   await writeFile(operationsPath, operations.map((operation) => JSON.stringify(operation)).join("\n") + "\n", "utf8");
   return { deckPath, operationsPath, slideCount: spec.slides.length };
 }

@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import JSZip from "jszip";
 import { fail } from "../errors.js";
+import { inspectPowerPointPackage } from "../powerpoint/pptx-package.js";
 import { validateSchema } from "../schema/validate.js";
 import { assertReadableFile, ensureDir, readJsonFile, resolveFromCwd, writeJsonFile } from "../util/fs.js";
 
@@ -63,21 +64,28 @@ export async function qaDeck(options: {
     await validateSchema("deck-spec", spec);
     const slideCount = await countPptxSlides(deckPath);
     const slideCountMatch = slideCount === spec.slides.length;
+    const packageIssues = await inspectPowerPointPackage(deckPath);
     const textOverflowFindings = deterministicTextOverflowFindings(spec);
     report = {
       ...report,
-      renderStatus: "passed",
+      renderStatus: packageIssues.length === 0 ? "passed" : "failed",
       slideCountMatch,
       textOverflowFindings,
-      screenshotEvaluatorNotes: slideCountMatch
-        ? []
-        : [
-            {
-              type: "slide-count-mismatch",
-              expected: spec.slides.length,
-              actual: slideCount
-            }
-          ]
+      screenshotEvaluatorNotes: [
+        ...(slideCountMatch
+          ? []
+          : [
+              {
+                type: "slide-count-mismatch",
+                expected: spec.slides.length,
+                actual: slideCount
+              }
+            ]),
+        ...packageIssues.map((issue) => ({
+          ...issue,
+          type: `powerpoint-package-${issue.type}`
+        }))
+      ]
     };
 
     const rasterizer = await findRasterizerToolchain();
