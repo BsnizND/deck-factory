@@ -34,7 +34,12 @@ export interface QaDeckResult {
   report: QaReport;
 }
 
-export async function qaDeck(options: { deckPath: string; specPath: string; outDir: string }): Promise<QaDeckResult> {
+export async function qaDeck(options: {
+  deckPath: string;
+  specPath: string;
+  outDir: string;
+  failOnError?: boolean;
+}): Promise<QaDeckResult> {
   const deckPath = resolveFromCwd(options.deckPath);
   const specPath = resolveFromCwd(options.specPath);
   const outDir = resolveFromCwd(options.outDir);
@@ -97,7 +102,7 @@ export async function qaDeck(options: { deckPath: string; specPath: string; outD
   };
   await validateSchema("qa-report", report);
   await writeJsonFile(reportPath, report);
-  if (report.status !== "passed") {
+  if (report.status !== "passed" && options.failOnError !== false) {
     fail(`Deck QA failed. See report: ${reportPath}`);
   }
   return { reportPath, report };

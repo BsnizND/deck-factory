@@ -12,6 +12,10 @@ import { qaDeck } from "../qa/qa-deck.js";
 
 interface DeckSpec {
   style: { styleId?: string };
+  openclaw: {
+    reviewerAgent: string;
+    maxRepairAttempts: number;
+  };
 }
 
 interface SkillDeckHandoff {
@@ -32,6 +36,7 @@ export async function runDeckFactory(options: {
   handoffPath?: string;
   specPath?: string;
   plannerAgent?: string;
+  maxRepairAttempts?: number;
 }): Promise<RunDeckFactoryResult> {
   if (!options.handoffPath && !options.specPath) {
     fail("Provide either --handoff for OpenClaw planning or --spec for an already approved deck spec.");
@@ -50,14 +55,35 @@ export async function runDeckFactory(options: {
         plannerAgent: options.plannerAgent
       });
 
-  const build = await buildDeck({ specPath, outDir: runDir });
-  await qaDeck({ deckPath: build.deckPath, specPath, outDir: runDir });
+  let currentSpecPath = specPath;
+  let build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
+  let qa = await qaDeck({ deckPath: build.deckPath, specPath: currentSpecPath, outDir: runDir, failOnError: false });
+  const initialSpec = await readJsonFile<DeckSpec>(currentSpecPath);
+  const maxRepairAttempts = options.maxRepairAttempts ?? initialSpec.openclaw.maxRepairAttempts;
+
+  for (let attempt = 1; qa.report.status !== "passed" && attempt <= maxRepairAttempts; attempt += 1) {
+    if (!isRepairableQaFailure(qa.report)) {
+      fail(`Deck QA failed with non-repairable prerequisite or render errors. See report: ${qa.reportPath}`);
+    }
+    currentSpecPath = await repairSpecWithOpenClaw({
+      specPath: currentSpecPath,
+      qaReportPath: qa.reportPath,
+      runDir,
+      attempt
+    });
+    build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
+    qa = await qaDeck({ deckPath: build.deckPath, specPath: currentSpecPath, outDir: runDir, failOnError: false });
+  }
+
+  if (qa.report.status !== "passed") {
+    fail(`Deck QA failed after ${maxRepairAttempts} repair attempt(s). See report: ${qa.reportPath}`);
+  }
   return {
     runDir,
-    specPath,
+    specPath: currentSpecPath,
     deckPath: build.deckPath,
     operationsPath: build.operationsPath,
-    qaReportPath: path.join(runDir, "qa-report.json")
+    qaReportPath: qa.reportPath
   };
 }
 
@@ -119,4 +145,49 @@ async function planSpecWithOpenClaw(options: {
   const runSpecPath = path.join(options.runDir, "deck-spec.json");
   await writeJsonFile(runSpecPath, result.output);
   return runSpecPath;
+}
+
+async function repairSpecWithOpenClaw(options: {
+  specPath: string;
+  qaReportPath: string;
+  runDir: string;
+  attempt: number;
+}): Promise<string> {
+  const spec = await readJsonFile<DeckSpec>(options.specPath);
+  await validateSchema("deck-spec", spec);
+  const qaReport = await readJsonFile<unknown>(options.qaReportPath);
+  await validateSchema("qa-report", qaReport);
+  const repairRunDir = path.join(options.runDir, "repairs", `attempt-${options.attempt}`);
+  const result = await runOpenClawJsonWorker<unknown>({
+    lane: "deck-factory-repair",
+    agent: spec.openclaw.reviewerAgent,
+    schemaName: "deck-spec",
+    runDir: repairRunDir,
+    context: {
+      version: "deck-factory.repair-context.v1",
+      attempt: options.attempt,
+      deckSpec: spec,
+      qaReport
+    },
+    prompt: [
+      "Repair the Deck Factory deck-spec based on the QA report.",
+      "Return a complete replacement deck-spec JSON object.",
+      "Keep the same style id and factual evidence.",
+      "Prefer smaller text, simpler layouts, fewer bullets, or alternate registered layouts over inventing new content.",
+      "Do not claim that missing tools or renderer prerequisites are fixed by editing the spec."
+    ].join("\n")
+  });
+  const repairedSpecPath = path.join(repairRunDir, "deck-spec.json");
+  await writeJsonFile(repairedSpecPath, result.output);
+  return repairedSpecPath;
+}
+
+function isRepairableQaFailure(report: { renderStatus: string; screenshotEvaluatorNotes: unknown[] }): boolean {
+  if (report.renderStatus !== "passed") {
+    return false;
+  }
+  return !report.screenshotEvaluatorNotes.some((note) => {
+    const record = note as Record<string, unknown>;
+    return record.type === "missing-prerequisite";
+  });
 }
