@@ -26,6 +26,11 @@ export async function writeJsonFile(filePath: string, value: unknown): Promise<v
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+export async function writeTextFile(filePath: string, value: string): Promise<void> {
+  await ensureDir(path.dirname(filePath));
+  await writeFile(filePath, value.endsWith("\n") ? value : `${value}\n`, "utf8");
+}
+
 export async function pathExists(filePath: string): Promise<boolean> {
   try {
     await stat(filePath);

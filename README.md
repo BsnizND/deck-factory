@@ -100,7 +100,7 @@ The end-to-end entrypoint is:
 npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c
 ```
 
-`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
+`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The default OpenClaw target is `ssh snizserver openclaw` and the default worker agent is `jay`; override with `DECK_FACTORY_OPENCLAW_COMMAND`, `--openclaw-command`, or `--planner-agent` only when deploying somewhere else. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
 
 ## License
 

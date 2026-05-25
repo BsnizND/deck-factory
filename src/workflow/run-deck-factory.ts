@@ -1,7 +1,11 @@
+import { execFile } from "node:child_process";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { buildDeck } from "./build-deck.js";
 import { runOpenClawJsonWorker } from "../ai/openclaw-json-worker.js";
 import { fail } from "../errors.js";
+import { DEFAULT_OPENCLAW_AGENT, resolveOpenClawCommand, resolveSimpleSshTarget } from "../openclaw/command.js";
 import { inspectTemplate } from "../registry/template-registry.js";
 import { loadSlideLibrary } from "../registry/slide-library.js";
 import { loadStylePack } from "../registry/style-pack.js";
@@ -9,6 +13,8 @@ import { validateSchema } from "../schema/validate.js";
 import type { TemplateProfile } from "../template/extract-template-profile.js";
 import { readJsonFile, resolveFromCwd, writeJsonFile } from "../util/fs.js";
 import { qaDeck } from "../qa/qa-deck.js";
+
+const execFileAsync = promisify(execFile);
 
 interface DeckSpec {
   style: { styleId?: string };
@@ -37,6 +43,7 @@ export async function runDeckFactory(options: {
   specPath?: string;
   plannerAgent?: string;
   maxRepairAttempts?: number;
+  openclawCommand?: string;
 }): Promise<RunDeckFactoryResult> {
   if (!options.handoffPath && !options.specPath) {
     fail("Provide either --handoff for OpenClaw planning or --spec for an already approved deck spec.");
@@ -52,12 +59,22 @@ export async function runDeckFactory(options: {
         handoffPath: options.handoffPath!,
         styleId: options.styleId,
         runDir,
-        plannerAgent: options.plannerAgent
+        plannerAgent: options.plannerAgent,
+        openclawCommand: options.openclawCommand
       });
 
   let currentSpecPath = specPath;
   let build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
   let qa = await qaDeck({ deckPath: build.deckPath, specPath: currentSpecPath, outDir: runDir, failOnError: false });
+  if (qa.report.status === "passed") {
+    qa = await reviewScreenshotsWithOpenClaw({
+      specPath: currentSpecPath,
+      qaReportPath: qa.reportPath,
+      screenshotsDir: qa.screenshotsDir,
+      runDir,
+      openclawCommand: options.openclawCommand
+    });
+  }
   const initialSpec = await readJsonFile<DeckSpec>(currentSpecPath);
   const maxRepairAttempts = options.maxRepairAttempts ?? initialSpec.openclaw.maxRepairAttempts;
 
@@ -69,10 +86,20 @@ export async function runDeckFactory(options: {
       specPath: currentSpecPath,
       qaReportPath: qa.reportPath,
       runDir,
+      openclawCommand: options.openclawCommand,
       attempt
     });
     build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
     qa = await qaDeck({ deckPath: build.deckPath, specPath: currentSpecPath, outDir: runDir, failOnError: false });
+    if (qa.report.status === "passed") {
+      qa = await reviewScreenshotsWithOpenClaw({
+        specPath: currentSpecPath,
+        qaReportPath: qa.reportPath,
+        screenshotsDir: qa.screenshotsDir,
+        runDir,
+        openclawCommand: options.openclawCommand
+      });
+    }
   }
 
   if (qa.report.status !== "passed") {
@@ -104,6 +131,7 @@ async function planSpecWithOpenClaw(options: {
   styleId: string;
   runDir: string;
   plannerAgent?: string;
+  openclawCommand?: string;
 }): Promise<string> {
   const handoff = await readJsonFile<SkillDeckHandoff>(resolveFromCwd(options.handoffPath));
   await validateSchema("skill-deck-handoff", handoff);
@@ -115,7 +143,7 @@ async function planSpecWithOpenClaw(options: {
   const template = await inspectTemplate(style.templateId);
   const templateProfile = await readJsonFile<TemplateProfile>(resolveFromCwd(template.cachedProfilePath));
   const slideLibraries = await Promise.all(style.slideLibraries.map((libraryId) => loadSlideLibrary(libraryId)));
-  const plannerAgent = options.plannerAgent ?? "jay";
+  const plannerAgent = options.plannerAgent ?? DEFAULT_OPENCLAW_AGENT;
 
   const plannerRunDir = path.join(options.runDir, "openclaw-planner");
   const result = await runOpenClawJsonWorker<unknown>({
@@ -123,6 +151,7 @@ async function planSpecWithOpenClaw(options: {
     agent: plannerAgent,
     schemaName: "deck-spec",
     runDir: plannerRunDir,
+    openclawCommand: options.openclawCommand,
     context: {
       version: "deck-factory.planner-context.v1",
       handoff,
@@ -151,6 +180,7 @@ async function repairSpecWithOpenClaw(options: {
   specPath: string;
   qaReportPath: string;
   runDir: string;
+  openclawCommand?: string;
   attempt: number;
 }): Promise<string> {
   const spec = await readJsonFile<DeckSpec>(options.specPath);
@@ -163,6 +193,7 @@ async function repairSpecWithOpenClaw(options: {
     agent: spec.openclaw.reviewerAgent,
     schemaName: "deck-spec",
     runDir: repairRunDir,
+    openclawCommand: options.openclawCommand,
     context: {
       version: "deck-factory.repair-context.v1",
       attempt: options.attempt,
@@ -190,4 +221,83 @@ function isRepairableQaFailure(report: { renderStatus: string; screenshotEvaluat
     const record = note as Record<string, unknown>;
     return record.type === "missing-prerequisite";
   });
+}
+
+async function reviewScreenshotsWithOpenClaw(options: {
+  specPath: string;
+  qaReportPath: string;
+  screenshotsDir: string;
+  runDir: string;
+  openclawCommand?: string;
+}): Promise<Awaited<ReturnType<typeof qaDeck>>> {
+  const spec = await readJsonFile<DeckSpec>(options.specPath);
+  await validateSchema("deck-spec", spec);
+  const qaReport = await readJsonFile<unknown>(options.qaReportPath);
+  await validateSchema("qa-report", qaReport);
+  const reviewRunDir = path.join(options.runDir, "openclaw-screenshot-review");
+  const mirroredScreenshotsDir = await mirrorScreenshotsForOpenClaw({
+    screenshotsDir: options.screenshotsDir,
+    runDir: options.runDir,
+    openclawCommand: options.openclawCommand
+  });
+  const result = await runOpenClawJsonWorker<unknown>({
+    lane: "deck-factory-screenshot-review",
+    agent: spec.openclaw.reviewerAgent,
+    schemaName: "qa-report",
+    runDir: reviewRunDir,
+    openclawCommand: options.openclawCommand,
+    context: {
+      version: "deck-factory.screenshot-review-context.v1",
+      deckSpec: spec,
+      deterministicQaReport: qaReport,
+      screenshotsDir: mirroredScreenshotsDir ?? options.screenshotsDir,
+      localScreenshotsDir: options.screenshotsDir,
+      screenshotAccess: mirroredScreenshotsDir
+        ? "screenshotsDir has been mirrored to the OpenClaw host"
+        : "screenshotsDir is local to the Deck Factory process"
+    },
+    prompt: [
+      "Review the rendered deck screenshots for visual quality.",
+      "Inspect the screenshot files in screenshotsDir if your runtime can access local files.",
+      "Return a complete qa-report JSON object.",
+      "Preserve deterministic failure findings from deterministicQaReport.",
+      "Set status to failed if the screenshots show unreadable text, severe crowding, obvious rendering corruption, or brand-template mismatch.",
+      "If you cannot inspect screenshots from the provided local paths, fail closed with a screenshotEvaluatorNotes entry explaining that screenshot review could not be performed."
+    ].join("\n")
+  });
+  const reviewedReportPath = path.join(options.runDir, "qa-report.json");
+  await writeJsonFile(reviewedReportPath, result.output);
+  const report = await readJsonFile<Awaited<ReturnType<typeof qaDeck>>["report"]>(reviewedReportPath);
+  await validateSchema("qa-report", report);
+  return {
+    reportPath: reviewedReportPath,
+    report,
+    screenshotsDir: options.screenshotsDir
+  };
+}
+
+async function mirrorScreenshotsForOpenClaw(options: {
+  screenshotsDir: string;
+  runDir: string;
+  openclawCommand?: string;
+}): Promise<string | null> {
+  const openclaw = resolveOpenClawCommand(options.openclawCommand);
+  const sshTarget = resolveSimpleSshTarget(openclaw);
+  if (!sshTarget) {
+    return null;
+  }
+  const screenshots = (await readdir(options.screenshotsDir))
+    .filter((fileName) => /^slide-\d+\.png$/.test(fileName))
+    .sort()
+    .map((fileName) => path.join(options.screenshotsDir, fileName));
+  if (screenshots.length === 0) {
+    fail(`No screenshots were available to mirror for OpenClaw review: ${options.screenshotsDir}`);
+  }
+  const remoteDir = `/tmp/deck-factory/${path.basename(options.runDir)}-${Date.now()}/screenshots`;
+  await execFileAsync("ssh", [sshTarget.host, "mkdir", "-p", remoteDir], { timeout: 30_000 });
+  await execFileAsync("scp", [...screenshots, `${sshTarget.host}:${remoteDir}/`], {
+    timeout: 120_000,
+    maxBuffer: 10 * 1024 * 1024
+  });
+  return remoteDir;
 }

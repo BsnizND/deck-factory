@@ -8,9 +8,9 @@ import {
 } from "../constants.js";
 import { fail } from "../errors.js";
 import { validateSchema } from "../schema/validate.js";
-import { assertReadableFile, pathExists, resolveFromCwd, toPortablePath, writeJsonFile, readJsonFile } from "../util/fs.js";
+import { assertReadableFile, pathExists, resolveFromCwd, toPortablePath, writeJsonFile, readJsonFile, writeTextFile } from "../util/fs.js";
 import { fingerprintFile } from "./fingerprint.js";
-import { slideLibraryPath } from "./paths.js";
+import { libraryPrepReportPath, slideLibraryPath } from "./paths.js";
 import { loadStylePack, saveStylePack } from "./style-pack.js";
 
 export interface SlideLibrary {
@@ -21,6 +21,7 @@ export interface SlideLibrary {
   sourceLibraryDeckPath: string;
   sourceContentHash: string;
   extractorVersion: string;
+  prepReportPath: string;
   slides: SlideLibraryEntry[];
   createdAt: string;
   updatedAt: string;
@@ -55,6 +56,8 @@ export async function registerSlideLibrary(options: {
   await assertPptx(sourcePath, "slide library deck");
   const sourceContentHash = await fingerprintFile(sourcePath);
   const filePath = slideLibraryPath(options.styleId);
+  const prepReportPath = libraryPrepReportPath(options.styleId);
+  const portablePrepReportPath = toPortablePath(prepReportPath);
   const existing = (await pathExists(filePath)) ? await readJsonFile<SlideLibrary>(filePath) : null;
   if (
     existing &&
@@ -63,6 +66,7 @@ export async function registerSlideLibrary(options: {
     existing.extractorVersion === EXTRACTOR_VERSION
   ) {
     await ensureStyleReferencesLibrary(style, options.styleId);
+    await writeLibraryPrepReport(prepReportPath, existing);
     return existing;
   }
 
@@ -76,12 +80,14 @@ export async function registerSlideLibrary(options: {
     sourceLibraryDeckPath: toPortablePath(sourcePath),
     sourceContentHash,
     extractorVersion: EXTRACTOR_VERSION,
+    prepReportPath: portablePrepReportPath,
     slides,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
   };
   await validateSchema("slide-library", library);
   await writeJsonFile(filePath, library);
+  await writeLibraryPrepReport(prepReportPath, library);
   await ensureStyleReferencesLibrary(style, options.styleId);
   return library;
 }
@@ -148,4 +154,41 @@ async function ensureStyleReferencesLibrary(style: Awaited<ReturnType<typeof loa
   if (!style.slideLibraries.includes(libraryId)) {
     await saveStylePack({ ...style, slideLibraries: [...style.slideLibraries, libraryId].sort() });
   }
+}
+
+async function writeLibraryPrepReport(filePath: string, library: SlideLibrary): Promise<void> {
+  const slides = library.slides
+    .map((slide) =>
+      [
+        `- ${slide.slideId} (${slide.kind})`,
+        `  - source slide: ${slide.sourceSlideNumber}`,
+        `  - required fields: ${slide.requiredFields.join(", ") || "none"}`,
+        `  - fingerprint: ${slide.fingerprint}`
+      ].join("\n")
+    )
+    .join("\n");
+  await writeTextFile(
+    filePath,
+    [
+      `# Slide Library Prep Report: ${library.displayName}`,
+      "",
+      `- Style id: ${library.styleId}`,
+      `- Library id: ${library.libraryId}`,
+      `- Source deck: ${library.sourceLibraryDeckPath}`,
+      `- Source hash: ${library.sourceContentHash}`,
+      `- Extractor version: ${library.extractorVersion}`,
+      `- Slide count: ${library.slides.length}`,
+      "",
+      "## Indexed Slides",
+      "",
+      slides || "- No library slides detected.",
+      "",
+      "## Library Preparation Contract",
+      "",
+      "- Use `DF_LIBRARY: slide-id` markers to assign stable reusable slide ids.",
+      "- Use `DF_KIND: full-built`, `parameterized`, `pattern`, or `appendix` to classify each slide.",
+      "- Use `{{field}}` tags for parameterized editable fields.",
+      "- Keep evergreen slides fully built when they should be inserted unchanged."
+    ].join("\n")
+  );
 }

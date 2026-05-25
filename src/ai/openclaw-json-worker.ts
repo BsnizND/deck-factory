@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fail } from "../errors.js";
+import { buildOpenClawInvocation, resolveOpenClawCommand } from "../openclaw/command.js";
 import { validateSchema, type SchemaName } from "../schema/validate.js";
 import { ensureDir, writeJsonFile } from "../util/fs.js";
 
@@ -18,6 +19,7 @@ export interface OpenClawJsonWorkerOptions {
   timeoutSeconds?: number;
   sessionId?: string;
   openclawBin?: string;
+  openclawCommand?: string;
 }
 
 export interface OpenClawJsonWorkerResult<TOutput> {
@@ -33,7 +35,9 @@ export async function runOpenClawJsonWorker<TOutput = unknown>(
 ): Promise<OpenClawJsonWorkerResult<TOutput>> {
   const timeoutSeconds = options.timeoutSeconds ?? 900;
   const sessionId = options.sessionId ?? `${options.lane}-${Date.now()}`;
-  const openclawBin = options.openclawBin ?? "openclaw";
+  const openclaw = options.openclawBin
+    ? { command: options.openclawBin, argsPrefix: [], display: options.openclawBin }
+    : resolveOpenClawCommand(options.openclawCommand);
   await ensureDir(options.runDir);
 
   const contextPath = path.join(options.runDir, "context.json");
@@ -49,6 +53,7 @@ export async function runOpenClawJsonWorker<TOutput = unknown>(
     agent: options.agent,
     schemaName: options.schemaName,
     sessionId,
+    openclawCommand: openclaw.display,
     timeoutSeconds,
     createdAt: new Date().toISOString()
   });
@@ -59,20 +64,21 @@ export async function runOpenClawJsonWorker<TOutput = unknown>(
   let stderr = "";
   let returncode = 0;
   try {
+    const invocation = buildOpenClawInvocation(openclaw, [
+      "agent",
+      "--agent",
+      options.agent,
+      "--session-id",
+      sessionId,
+      "--message",
+      message,
+      "--json",
+      "--timeout",
+      String(timeoutSeconds)
+    ]);
     const result = await execFileAsync(
-      openclawBin,
-      [
-        "agent",
-        "--agent",
-        options.agent,
-        "--session-id",
-        sessionId,
-        "--message",
-        message,
-        "--json",
-        "--timeout",
-        String(timeoutSeconds)
-      ],
+      invocation.command,
+      invocation.args,
       { timeout: (timeoutSeconds + 30) * 1000, maxBuffer: 20 * 1024 * 1024 }
     );
     stdout = result.stdout;
@@ -120,12 +126,29 @@ function workerMessage(prompt: string, schemaName: SchemaName, context: unknown)
 }
 
 function parseJson(text: string, label: string): unknown {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const trimmed = extractLikelyJson(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, ""));
   try {
     return JSON.parse(trimmed);
   } catch (error) {
     fail(`${label} was not valid JSON: ${(error as Error).message}`);
   }
+}
+
+function extractLikelyJson(text: string): string {
+  if (text.startsWith("{") || text.startsWith("[")) {
+    return text;
+  }
+  const objectStart = text.indexOf("{");
+  const objectEnd = text.lastIndexOf("}");
+  const arrayStart = text.indexOf("[");
+  const arrayEnd = text.lastIndexOf("]");
+  if (objectStart >= 0 && objectEnd > objectStart && (arrayStart < 0 || objectStart < arrayStart)) {
+    return text.slice(objectStart, objectEnd + 1);
+  }
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    return text.slice(arrayStart, arrayEnd + 1);
+  }
+  return text;
 }
 
 function extractAssistantText(envelope: unknown): string {

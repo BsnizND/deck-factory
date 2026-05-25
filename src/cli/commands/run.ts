@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { fail } from "../../errors.js";
+import { DEFAULT_OPENCLAW_AGENT, DEFAULT_OPENCLAW_COMMAND } from "../../openclaw/command.js";
 import { runDeckFactory } from "../../workflow/run-deck-factory.js";
 
 export function registerRunCommand(program: Command): void {
@@ -10,7 +11,11 @@ export function registerRunCommand(program: Command): void {
     .requiredOption("--out <dir>", "Output run directory.")
     .option("--handoff <path>", "Skill deck handoff JSON. Uses OpenClaw to plan deck-spec.json.")
     .option("--spec <path>", "Existing deck spec JSON. Skips OpenClaw planning but still validates, renders, and QA checks.")
-    .option("--planner-agent <agent>", "OpenClaw agent for deck planning. Defaults to jay.")
+    .option("--planner-agent <agent>", `OpenClaw agent for deck planning. Defaults to ${DEFAULT_OPENCLAW_AGENT}.`)
+    .option(
+      "--openclaw-command <command>",
+      `Command used to invoke OpenClaw. Defaults to DECK_FACTORY_OPENCLAW_COMMAND or '${DEFAULT_OPENCLAW_COMMAND}'.`
+    )
     .option("--max-repair-attempts <number>", "Override deck-spec openclaw.maxRepairAttempts.")
     .action(
       async (options: {
@@ -19,6 +24,7 @@ export function registerRunCommand(program: Command): void {
         handoff?: string;
         spec?: string;
         plannerAgent?: string;
+        openclawCommand?: string;
         maxRepairAttempts?: string;
       }) => {
         const maxRepairAttempts = parseOptionalNonNegativeInteger(options.maxRepairAttempts);
@@ -28,6 +34,7 @@ export function registerRunCommand(program: Command): void {
           handoffPath: options.handoff,
           specPath: options.spec,
           plannerAgent: options.plannerAgent,
+          openclawCommand: options.openclawCommand,
           maxRepairAttempts
         });
         console.log(JSON.stringify(result, null, 2));

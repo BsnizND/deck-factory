@@ -112,9 +112,9 @@ function sampleDeckSpec(): unknown {
     style: { styleId: "snizco-agency" },
     librarySlides: [{ slideId: "about-us" }],
     openclaw: {
-      plannerAgent: "deck-factory-planner",
-      reviewerAgent: "deck-factory-reviewer",
-      polisherAgent: "deck-factory-polisher",
+      plannerAgent: "jay",
+      reviewerAgent: "jay",
+      polisherAgent: "jay",
       sessionPrefix: "deck-factory-sample",
       requiredModelRuntime: "openclaw",
       maxRepairAttempts: 1

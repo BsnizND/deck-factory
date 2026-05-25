@@ -9,6 +9,7 @@
       "extractorVersion": "deck-factory.extractor.v0",
       "profileSchemaVersion": "deck-factory.template-profile.v1",
       "cachedProfilePath": "registry/profiles/snizco-agency.template-profile.json",
+      "prepReportPath": "registry/reports/snizco-agency.template-prep-report.md",
       "preparationStatus": "ready",
       "supportedArchetypes": [
         "title",

@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, rm, rename, stat } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import JSZip from "jszip";
 import { fail } from "../errors.js";
@@ -32,6 +33,7 @@ export interface QaReport {
 export interface QaDeckResult {
   reportPath: string;
   report: QaReport;
+  screenshotsDir: string;
 }
 
 export async function qaDeck(options: {
@@ -44,6 +46,7 @@ export async function qaDeck(options: {
   const specPath = resolveFromCwd(options.specPath);
   const outDir = resolveFromCwd(options.outDir);
   const reportPath = path.join(outDir, "qa-report.json");
+  const screenshotsDir = path.join(outDir, "screenshots");
   await ensureDir(outDir);
 
   const baseReport = emptyReport();
@@ -69,24 +72,33 @@ export async function qaDeck(options: {
           ]
     };
 
-    const rasterizer = await findRasterizer();
-    if (!rasterizer) {
+    const rasterizer = await findRasterizerToolchain();
+    if (!rasterizer.ok) {
       report = failReport(report, {
         type: "missing-prerequisite",
-        prerequisite: "PPTX rasterizer",
-        detail: "Install LibreOffice and expose either soffice or libreoffice on PATH to enable screenshot QA."
+        prerequisite: rasterizer.missing.join(", "),
+        detail: rasterizer.detail
       });
     } else {
-      const rasterDir = path.join(outDir, "screenshots");
-      await ensureDir(rasterDir);
-      await execFileAsync(
-        rasterizer,
-        ["--headless", "--convert-to", "pdf", "--outdir", rasterDir, deckPath],
-        { timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }
-      );
+      const screenshots = await rasterizePptx({
+        deckPath,
+        outDir: screenshotsDir,
+        slideCount,
+        sofficeCommand: rasterizer.sofficeCommand,
+        magickCommand: rasterizer.magickCommand
+      });
       report = {
         ...report,
-        rasterizationStatus: "passed"
+        rasterizationStatus: "passed",
+        screenshotEvaluatorNotes: [
+          ...report.screenshotEvaluatorNotes,
+          {
+            type: "rasterization",
+            renderer: "libreoffice-pdf-imagemagick",
+            screenshotsDir,
+            slideImages: screenshots
+          }
+        ]
       };
     }
   } catch (error) {
@@ -105,7 +117,7 @@ export async function qaDeck(options: {
   if (report.status !== "passed" && options.failOnError !== false) {
     fail(`Deck QA failed. See report: ${reportPath}`);
   }
-  return { reportPath, report };
+  return { reportPath, report, screenshotsDir };
 }
 
 export async function countPptxSlides(deckPath: string): Promise<number> {
@@ -118,16 +130,108 @@ export async function countPptxSlides(deckPath: string): Promise<number> {
   return [...presentationXml.matchAll(/<p:sldId\b/g)].length;
 }
 
-async function findRasterizer(): Promise<string | null> {
-  for (const command of ["soffice", "libreoffice"]) {
+interface RasterizerToolchain {
+  ok: true;
+  sofficeCommand: string;
+  magickCommand: string;
+}
+
+interface MissingRasterizerToolchain {
+  ok: false;
+  missing: string[];
+  detail: string;
+}
+
+async function findRasterizerToolchain(): Promise<RasterizerToolchain | MissingRasterizerToolchain> {
+  const missing: string[] = [];
+  const sofficeCommand = await firstWorkingCommand([
+    { command: "soffice", args: ["--version"] },
+    { command: "libreoffice", args: ["--version"] }
+  ]);
+  if (!sofficeCommand) {
+    missing.push("LibreOffice soffice/libreoffice");
+  }
+  const magickCommand = await firstWorkingCommand([{ command: "magick", args: ["--version"] }]);
+  if (!magickCommand) {
+    missing.push("ImageMagick magick");
+  }
+  const ghostscriptCommand = await firstWorkingCommand([{ command: "gs", args: ["--version"] }]);
+  if (!ghostscriptCommand) {
+    missing.push("Ghostscript gs");
+  }
+  if (!sofficeCommand || !magickCommand || !ghostscriptCommand) {
+    return {
+      ok: false,
+      missing,
+      detail:
+        "Screenshot QA requires LibreOffice to convert PPTX to PDF, plus ImageMagick and Ghostscript to rasterize PDF pages to PNG."
+    };
+  }
+  return { ok: true, sofficeCommand, magickCommand };
+}
+
+async function firstWorkingCommand(candidates: Array<{ command: string; args: string[] }>): Promise<string | null> {
+  for (const candidate of candidates) {
     try {
-      await execFileAsync(command, ["--version"], { timeout: 10_000 });
-      return command;
+      await execFileAsync(candidate.command, candidate.args, { timeout: 10_000 });
+      return candidate.command;
     } catch {
-      // Keep looking for a supported rasterizer.
+      // Keep looking for a supported command.
     }
   }
   return null;
+}
+
+async function rasterizePptx(options: {
+  deckPath: string;
+  outDir: string;
+  slideCount: number;
+  sofficeCommand: string;
+  magickCommand: string;
+}): Promise<string[]> {
+  await rm(options.outDir, { recursive: true, force: true });
+  await ensureDir(options.outDir);
+  const pdfDir = path.join(options.outDir, "_pdf");
+  const libreOfficeProfileDir = path.join(options.outDir, "_lo-profile");
+  await ensureDir(pdfDir);
+  await ensureDir(libreOfficeProfileDir);
+  const libreOfficeProfileUrl = pathToFileURL(libreOfficeProfileDir).href;
+  const pdfResult = await execFileAsync(
+    options.sofficeCommand,
+    [`-env:UserInstallation=${libreOfficeProfileUrl}`, "--headless", "--convert-to", "pdf", "--outdir", pdfDir, options.deckPath],
+    { timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }
+  );
+  const pdfPath = path.join(pdfDir, `${path.basename(options.deckPath, path.extname(options.deckPath))}.pdf`);
+  try {
+    await assertReadableFile(pdfPath);
+  } catch {
+    fail(`LibreOffice did not create expected PDF: ${pdfPath}. stdout: ${pdfResult.stdout.trim()} stderr: ${pdfResult.stderr.trim()}`);
+  }
+  await execFileAsync(
+    options.magickCommand,
+    ["-density", "144", pdfPath, path.join(options.outDir, "page-%03d.png")],
+    { timeout: 120_000, maxBuffer: 20 * 1024 * 1024 }
+  );
+  const generated = (await readdir(options.outDir))
+    .filter((fileName) => /^page-\d+\.png$/.test(fileName))
+    .sort();
+  if (generated.length !== options.slideCount) {
+    fail(`Rasterized ${generated.length} slide image(s), expected ${options.slideCount}.`);
+  }
+  const normalizedPaths: string[] = [];
+  for (const [index, fileName] of generated.entries()) {
+    const sourcePath = path.join(options.outDir, fileName);
+    const targetPath = path.join(options.outDir, `slide-${String(index + 1).padStart(3, "0")}.png`);
+    if (sourcePath !== targetPath) {
+      await rename(sourcePath, targetPath);
+    }
+    const info = await stat(targetPath);
+    if (info.size === 0) {
+      fail(`Rasterized slide image is empty: ${targetPath}`);
+    }
+    normalizedPaths.push(targetPath);
+  }
+  return normalizedPaths;
 }
 
 function emptyReport(): QaReport {

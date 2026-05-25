@@ -25,10 +25,22 @@ export function profilePath(templateId: string, root = DEFAULT_REGISTRY_DIR): st
   return path.join(profilesDir(root), `${templateId}.template-profile.json`);
 }
 
+export function reportsDir(root = DEFAULT_REGISTRY_DIR): string {
+  return path.join(registryRoot(root), "reports");
+}
+
+export function templatePrepReportPath(templateId: string, root = DEFAULT_REGISTRY_DIR): string {
+  return path.join(reportsDir(root), `${templateId}.template-prep-report.md`);
+}
+
 export function slideLibrariesDir(root = DEFAULT_REGISTRY_DIR): string {
   return path.join(registryRoot(root), "slide-libraries");
 }
 
 export function slideLibraryPath(styleId: string, root = DEFAULT_REGISTRY_DIR): string {
   return path.join(slideLibrariesDir(root), `${styleId}.json`);
+}
+
+export function libraryPrepReportPath(styleId: string, root = DEFAULT_REGISTRY_DIR): string {
+  return path.join(reportsDir(root), `${styleId}.library-prep-report.md`);
 }

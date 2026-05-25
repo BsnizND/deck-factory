@@ -6,6 +6,7 @@
   "sourceLibraryDeckPath": "samples/snizco-agency/library.pptx",
   "sourceContentHash": "474947427ddeb090367400509d39291ee6bc9d8f00d904a9175c1a32bd178182",
   "extractorVersion": "deck-factory.extractor.v0",
+  "prepReportPath": "registry/reports/snizco-agency.library-prep-report.md",
   "slides": [
     {
       "slideId": "about-us",

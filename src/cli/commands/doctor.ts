@@ -1,6 +1,13 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Command } from "commander";
+import {
+  DEFAULT_OPENCLAW_AGENT,
+  DEFAULT_OPENCLAW_COMMAND,
+  buildOpenClawInvocation,
+  resolveOpenClawCommand,
+  type OpenClawCommand
+} from "../../openclaw/command.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -17,8 +24,16 @@ export function registerDoctorCommand(program: Command): void {
     .command("doctor")
     .description("Report Deck Factory prerequisite readiness without mutating state.")
     .option("--json", "Print JSON output.")
-    .action(async (options: { json?: boolean }) => {
-      const checks = await runDoctorChecks();
+    .option("--worker-agent <id>", `OpenClaw worker agent id to verify. Defaults to ${DEFAULT_OPENCLAW_AGENT}.`, DEFAULT_OPENCLAW_AGENT)
+    .option(
+      "--openclaw-command <command>",
+      `Command used to invoke OpenClaw. Defaults to DECK_FACTORY_OPENCLAW_COMMAND or '${DEFAULT_OPENCLAW_COMMAND}'.`
+    )
+    .action(async (options: { json?: boolean; workerAgent: string; openclawCommand?: string }) => {
+      const checks = await runDoctorChecks({
+        workerAgent: options.workerAgent,
+        openclawCommand: resolveOpenClawCommand(options.openclawCommand)
+      });
       const ok = checks.every((check) => check.status === "ok" || check.status === "warning");
       if (options.json) {
         console.log(JSON.stringify({ ok, checks }, null, 2));
@@ -37,12 +52,13 @@ export function registerDoctorCommand(program: Command): void {
     });
 }
 
-async function runDoctorChecks(): Promise<DoctorCheck[]> {
+async function runDoctorChecks(options: { workerAgent: string; openclawCommand: OpenClawCommand }): Promise<DoctorCheck[]> {
   const checks: DoctorCheck[] = [];
   checks.push(await commandVersionCheck("node", ["--version"], "Node.js"));
   checks.push(await commandVersionCheck("npm", ["--version"], "npm"));
-  checks.push(await openClawCheck());
-  checks.push(await rasterizerCheck());
+  checks.push(await openClawCheck(options.openclawCommand));
+  checks.push(await openClawWorkerCheck(options.openclawCommand, options.workerAgent));
+  checks.push(...(await rasterizerChecks()));
   return checks;
 }
 
@@ -64,29 +80,116 @@ async function commandVersionCheck(
   }
 }
 
-async function openClawCheck(): Promise<DoctorCheck> {
+async function openClawCheck(openclaw: OpenClawCommand): Promise<DoctorCheck> {
   try {
-    const result = await execFileAsync("openclaw", ["--version"], { timeout: 10_000 });
+    const invocation = buildOpenClawInvocation(openclaw, ["--version"]);
+    const result = await execFileAsync(invocation.command, invocation.args, { timeout: 10_000 });
     const output = `${result.stdout}${result.stderr}`.trim();
     const status: CheckStatus = output.includes("Config was last written by a newer OpenClaw") ? "warning" : "ok";
-    return { name: "OpenClaw", status, detail: output || "openclaw found" };
+    return { name: "OpenClaw", status, detail: `${openclaw.display}: ${output || "openclaw found"}` };
   } catch (error) {
-    return { name: "OpenClaw", status: "missing", detail: `openclaw is not available: ${(error as Error).message}` };
+    return { name: "OpenClaw", status: "missing", detail: `${openclaw.display} is not available: ${(error as Error).message}` };
   }
 }
 
-async function rasterizerCheck(): Promise<DoctorCheck> {
+async function openClawWorkerCheck(openclaw: OpenClawCommand, agentId: string): Promise<DoctorCheck> {
+  try {
+    const agentsInvocation = buildOpenClawInvocation(openclaw, ["agents", "list", "--json"]);
+    const agentsResult = await execFileAsync(agentsInvocation.command, agentsInvocation.args, {
+      timeout: 30_000,
+      maxBuffer: 5 * 1024 * 1024
+    });
+    const agents = extractJsonArray(agentsResult.stdout);
+    const agentExists = agents.some((agent) => (agent as Record<string, unknown>).id === agentId);
+    if (!agentExists) {
+      return {
+        name: `OpenClaw worker (${agentId})`,
+        status: "missing",
+        detail: `Agent id is not configured for ${openclaw.display}: ${agentId}`
+      };
+    }
+
+    const modelsInvocation = buildOpenClawInvocation(openclaw, ["models", "status", "--agent", agentId, "--json"]);
+    const result = await execFileAsync(modelsInvocation.command, modelsInvocation.args, {
+      timeout: 30_000,
+      maxBuffer: 5 * 1024 * 1024
+    });
+    const status = extractJsonObject(result.stdout) as {
+      resolvedDefault?: string;
+      auth?: {
+        missingProvidersInUse?: string[];
+        runtimeAuthRoutes?: Array<{ provider?: string; runtime?: string; status?: string }>;
+      };
+    };
+    const missingProviders = status.auth?.missingProvidersInUse ?? [];
+    const missingRoutes = (status.auth?.runtimeAuthRoutes ?? []).filter((route) => !["ok", "usable"].includes(route.status ?? ""));
+    if (missingProviders.length > 0 || missingRoutes.length > 0) {
+      return {
+        name: `OpenClaw worker (${agentId})`,
+        status: "missing",
+        detail: `Model runtime is not ready for ${status.resolvedDefault ?? "unknown model"}. Missing providers: ${
+          missingProviders.join(", ") || "none"
+        }. Missing routes: ${missingRoutes
+          .map((route) => `${route.provider ?? "unknown"}/${route.runtime ?? "unknown"}=${route.status ?? "unknown"}`)
+          .join(", ") || "none"}.`
+      };
+    }
+    return {
+      name: `OpenClaw worker (${agentId})`,
+      status: "ok",
+      detail: `${openclaw.display}: model runtime is ready for ${status.resolvedDefault ?? "configured default model"}.`
+    };
+  } catch (error) {
+    const maybeError = error as Error & { stdout?: string; stderr?: string };
+    return {
+      name: `OpenClaw worker (${agentId})`,
+      status: "missing",
+      detail: `Unable to verify OpenClaw worker readiness: ${maybeError.stderr || maybeError.stdout || maybeError.message}`
+    };
+  }
+}
+
+async function rasterizerChecks(): Promise<DoctorCheck[]> {
   const soffice = await commandVersionCheck("soffice", ["--version"], "soffice", true);
-  if (soffice.status === "ok") {
-    return { ...soffice, name: "PPTX rasterizer" };
+  const libreoffice = soffice.status === "ok" ? null : await commandVersionCheck("libreoffice", ["--version"], "libreoffice", true);
+  const office = soffice.status === "ok" ? soffice : libreoffice!;
+  const magick = await commandVersionCheck("magick", ["--version"], "ImageMagick", false);
+  const ghostscript = await commandVersionCheck("gs", ["--version"], "Ghostscript", false);
+  const rasterizer: DoctorCheck =
+    office.status === "ok" && magick.status === "ok" && ghostscript.status === "ok"
+      ? {
+          name: "PPTX rasterizer",
+          status: "ok",
+          detail: "LibreOffice, ImageMagick, and Ghostscript are available for PPTX screenshot QA."
+        }
+      : {
+          name: "PPTX rasterizer",
+          status: "missing",
+          detail:
+            "Screenshot QA requires LibreOffice soffice/libreoffice, ImageMagick magick, and Ghostscript gs on PATH."
+        };
+  return [
+    { ...office, name: "LibreOffice" },
+    magick,
+    ghostscript,
+    rasterizer
+  ];
+}
+
+function extractJsonObject(text: string): Record<string, unknown> {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end < start) {
+    throw new Error("OpenClaw did not return a JSON object.");
   }
-  const libreoffice = await commandVersionCheck("libreoffice", ["--version"], "libreoffice", true);
-  if (libreoffice.status === "ok") {
-    return { ...libreoffice, name: "PPTX rasterizer" };
+  return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+}
+
+function extractJsonArray(text: string): unknown[] {
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start < 0 || end < start) {
+    throw new Error("OpenClaw did not return a JSON array.");
   }
-  return {
-    name: "PPTX rasterizer",
-    status: "missing",
-    detail: `No PPTX rasterizer found. Tried soffice (${soffice.detail}) and libreoffice (${libreoffice.detail}).`
-  };
+  return JSON.parse(text.slice(start, end + 1)) as unknown[];
 }

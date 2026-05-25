@@ -10,6 +10,7 @@
     "sourceLibraryDeckPath",
     "sourceContentHash",
     "extractorVersion",
+    "prepReportPath",
     "slides",
     "createdAt",
     "updatedAt"
@@ -23,6 +24,7 @@
     "sourceLibraryDeckPath": { "type": "string" },
     "sourceContentHash": { "type": "string" },
     "extractorVersion": { "type": "string" },
+    "prepReportPath": { "type": "string" },
     "slides": {
       "type": "array",
       "items": {
