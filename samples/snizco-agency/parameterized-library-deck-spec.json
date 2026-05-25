@@ -1,0 +1,74 @@
+{
+  "version": "deck-factory.deck-spec.v1",
+  "deck": {
+    "title": "Parameterized Library Fixture",
+    "audience": "executive",
+    "objective": "Demonstrate a reusable parameterized library slide.",
+    "tone": "concise and evidence-led",
+    "requestedLength": 2,
+    "speakerNotes": false
+  },
+  "template": {
+    "templateId": "snizco-agency"
+  },
+  "style": {
+    "styleId": "snizco-agency"
+  },
+  "librarySlides": [
+    {
+      "slideId": "case-study"
+    }
+  ],
+  "openclaw": {
+    "plannerAgent": "jay",
+    "reviewerAgent": "jay",
+    "polisherAgent": "jay",
+    "sessionPrefix": "deck-factory-parameterized-fixture",
+    "requiredModelRuntime": "openclaw",
+    "maxRepairAttempts": 1
+  },
+  "assets": [],
+  "slides": [
+    {
+      "id": "s1",
+      "source": "generated",
+      "layout": "title",
+      "purpose": "Introduce the parameterized library fixture.",
+      "title": "Parameterized Library Fixture",
+      "content": [
+        {
+          "type": "text",
+          "text": "Sample fixture, not live research."
+        }
+      ],
+      "citations": [],
+      "constraints": {}
+    },
+    {
+      "id": "s2",
+      "source": "library-pattern",
+      "layout": "case-study",
+      "librarySlideId": "case-study",
+      "purpose": "Populate a reusable case-study slide from a slide library.",
+      "title": "Case Study",
+      "content": [
+        {
+          "type": "fields",
+          "fields": {
+            "client": "Example Client",
+            "challenge": "Turn a prepared research handoff into a polished deck without re-extracting templates.",
+            "solution": "Resolve the registered style, populate reusable library slides, render PPTX, and run screenshot QA.",
+            "result": "A repeatable editable deck workflow with cached templates and auditable evidence."
+          }
+        }
+      ],
+      "citations": [],
+      "constraints": {
+        "fixture": true
+      }
+    }
+  ],
+  "constraints": {
+    "fixture": true
+  }
+}

@@ -1,6 +1,7 @@
 # Template Prep Report: Snizco Agency
 
 - Template id: snizco-agency
+- Source file role: template-deck
 - Source deck: samples/snizco-agency/template.pptx
 - Source hash: df5fbc4e21285fedc081e23f584f78c9cdb8effe5a4de3255d1f8df2fcf0b6f5
 - Preparation status: ready

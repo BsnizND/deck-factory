@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
 import { promisify } from "node:util";
 import type { Command } from "commander";
 import {
@@ -10,6 +11,7 @@ import {
 } from "../../openclaw/command.js";
 
 const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
 
 type CheckStatus = "ok" | "missing" | "warning";
 
@@ -56,10 +58,31 @@ async function runDoctorChecks(options: { workerAgent: string; openclawCommand: 
   const checks: DoctorCheck[] = [];
   checks.push(await commandVersionCheck("node", ["--version"], "Node.js"));
   checks.push(await commandVersionCheck("npm", ["--version"], "npm"));
+  checks.push(packageVersionCheck("pptx-automizer", "Renderer: pptx-automizer"));
+  checks.push(packageVersionCheck("pptxgenjs", "Renderer: PptxGenJS"));
   checks.push(await openClawCheck(options.openclawCommand));
   checks.push(await openClawWorkerCheck(options.openclawCommand, options.workerAgent));
   checks.push(...(await rasterizerChecks()));
   return checks;
+}
+
+function packageVersionCheck(packageName: string, name: string): DoctorCheck {
+  try {
+    const packageJsonPath = require.resolve(`${packageName}/package.json`);
+    const packageJson = require(packageJsonPath) as { version?: string };
+    return { name, status: "ok", detail: `${packageName}@${packageJson.version ?? "unknown"}` };
+  } catch (error) {
+    try {
+      const resolvedPath = require.resolve(packageName);
+      return { name, status: "ok", detail: `${packageName} resolved at ${resolvedPath}` };
+    } catch {
+      return {
+        name,
+        status: "missing",
+        detail: `${packageName} is not installed or cannot be resolved: ${(error as Error).message}`
+      };
+    }
+  }
 }
 
 async function commandVersionCheck(

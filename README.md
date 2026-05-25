@@ -6,9 +6,9 @@ The core bet is simple: great decks should not be generated as disposable images
 
 ## Status
 
-Deck Factory is in early implementation. The repo currently has a TypeScript CLI scaffold, schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, an editable PPTX build path, a fail-closed QA report, and a first `run` command for plan/render/QA orchestration.
+Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw/Jay screenshot review, and a spec-first repair loop.
 
-It is not production-ready yet. Screenshot rasterization requires LibreOffice (`soffice` or `libreoffice`) on `PATH`, and OpenClaw screenshot reviewer/repair loops still need to be completed before generated decks should be treated as client-ready.
+It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to `ssh snizserver openclaw` with worker agent `jay`.
 
 ## The Pipeline
 
@@ -92,6 +92,7 @@ npm run cli -- templates register --id snizco-agency --name "Snizco Agency" --te
 npm run cli -- libraries register --style snizco-agency --library-deck samples/snizco-agency/library.pptx
 npm run cli -- build --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
 npm run cli -- qa --deck artifacts/sample-build/deck.pptx --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
+npm run cli -- run --style snizco-agency --spec samples/snizco-agency/overcrowded-deck-spec.json --out artifacts/overcrowded-repair --max-repair-attempts 1
 ```
 
 The end-to-end entrypoint is:

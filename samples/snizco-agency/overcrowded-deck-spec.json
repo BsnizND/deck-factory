@@ -1,0 +1,69 @@
+{
+  "version": "deck-factory.deck-spec.v1",
+  "deck": {
+    "title": "Overcrowded Repair Fixture",
+    "audience": "executive",
+    "objective": "Exercise the spec-first repair loop with a deliberately overcrowded slide.",
+    "tone": "concise and evidence-led",
+    "requestedLength": 2,
+    "speakerNotes": false
+  },
+  "template": {
+    "templateId": "snizco-agency"
+  },
+  "style": {
+    "styleId": "snizco-agency"
+  },
+  "librarySlides": [],
+  "openclaw": {
+    "plannerAgent": "jay",
+    "reviewerAgent": "jay",
+    "polisherAgent": "jay",
+    "sessionPrefix": "deck-factory-repair-fixture",
+    "requiredModelRuntime": "openclaw",
+    "maxRepairAttempts": 1
+  },
+  "assets": [],
+  "slides": [
+    {
+      "id": "s1",
+      "source": "generated",
+      "layout": "title",
+      "purpose": "Introduce the repair fixture.",
+      "title": "Overcrowded Repair Fixture",
+      "content": [
+        {
+          "type": "text",
+          "text": "Sample fixture, not live research."
+        }
+      ],
+      "citations": [],
+      "constraints": {}
+    },
+    {
+      "id": "s2",
+      "source": "generated",
+      "layout": "content",
+      "purpose": "Deliberately exceed the v0 content layout text threshold so Deck Factory must ask OpenClaw to repair the deck spec before rerendering.",
+      "title": "Overcrowded Slide",
+      "content": [
+        {
+          "type": "bullets",
+          "items": [
+            "This deliberately excessive bullet is written as a single overlong thought to trigger Deck Factory's deterministic long-bullet-overflow check, proving that the renderer does not silently squeeze unreadable content into a client-facing slide and that the repair loop must rewrite the spec.",
+            "The slide also includes enough total body copy to exceed the v0 content layout threshold, which should force a spec-first repair rather than an operation patch, mock QA pass, or silent fallback.",
+            "OpenClaw should shorten this material into a concise, readable set of executive bullets while preserving the fixture's meaning: overcrowded content must be repaired before the deck is approved.",
+            "This final sentence pads the body so the deterministic text-length-overflow finding is guaranteed even if line breaks or punctuation are changed by PowerPoint rendering."
+          ]
+        }
+      ],
+      "citations": [],
+      "constraints": {
+        "fixture": true
+      }
+    }
+  ],
+  "constraints": {
+    "fixture": true
+  }
+}

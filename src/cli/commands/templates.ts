@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { registerTemplate, loadTemplateRegistry, inspectTemplate, refreshTemplate } from "../../registry/template-registry.js";
-import { defaultStylePack, saveStylePack } from "../../registry/style-pack.js";
+import { defaultStylePack, loadStylePack, saveStylePack } from "../../registry/style-pack.js";
+import { DeckFactoryError } from "../../errors.js";
 
 export function registerTemplatesCommand(program: Command): void {
   const templates = program.command("templates").description("Register, inspect, and refresh reusable template styles.");
@@ -24,14 +25,7 @@ export function registerTemplatesCommand(program: Command): void {
         sourceFileRole: options.templateDeck ? "template-deck" : "powerpoint-template",
         force: options.force
       });
-      await saveStylePack(
-        defaultStylePack({
-          styleId: entry.templateId,
-          displayName: entry.displayName,
-          templateId: entry.templateId,
-          supportedArchetypes: entry.supportedArchetypes
-        })
-      );
+      await upsertStylePackForTemplate(entry);
       console.log(JSON.stringify(entry, null, 2));
     });
 
@@ -57,4 +51,36 @@ export function registerTemplatesCommand(program: Command): void {
     .action(async (id: string) => {
       console.log(JSON.stringify(await refreshTemplate(id), null, 2));
     });
+}
+
+async function upsertStylePackForTemplate(entry: {
+  templateId: string;
+  displayName: string;
+  supportedArchetypes: string[];
+}): Promise<void> {
+  try {
+    const existing = await loadStylePack(entry.templateId);
+    await saveStylePack({
+      ...existing,
+      displayName: entry.displayName,
+      templateId: entry.templateId,
+      supportedArchetypes: entry.supportedArchetypes,
+      layoutMap: {
+        ...Object.fromEntries(entry.supportedArchetypes.map((name) => [name, name])),
+        ...existing.layoutMap
+      }
+    });
+  } catch (error) {
+    if (!(error instanceof DeckFactoryError)) {
+      throw error;
+    }
+    await saveStylePack(
+      defaultStylePack({
+        styleId: entry.templateId,
+        displayName: entry.displayName,
+        templateId: entry.templateId,
+        supportedArchetypes: entry.supportedArchetypes
+      })
+    );
+  }
 }

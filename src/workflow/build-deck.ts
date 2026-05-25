@@ -23,7 +23,7 @@ interface DeckSpecSlide {
   layout: string;
   librarySlideId?: string;
   title: string;
-  content: Array<{ type?: string; text?: string; items?: string[] }>;
+  content: Array<{ type?: string; text?: string; items?: string[]; fields?: Record<string, string> }>;
 }
 
 export interface BuildDeckResult {
@@ -67,7 +67,7 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
 
   const operations: unknown[] = [];
   for (const slide of spec.slides) {
-    if (slide.source === "library") {
+    if (slide.source === "library" || slide.source === "library-pattern") {
       if (!library) {
         fail(`Slide ${slide.id} requested library source but style ${styleId} has no registered slide library.`);
       }
@@ -75,8 +75,30 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
       if (!librarySlide) {
         fail(`Library slide is not registered for style ${styleId}: ${slide.librarySlideId ?? "(missing id)"}`);
       }
-      pres = pres.addSlide("library", librarySlide.sourceSlideNumber);
-      operations.push({ slideId: slide.id, operation: "copy-library-slide", librarySlideId: librarySlide.slideId });
+      const fieldValues = fieldValuesForSlide(slide);
+      for (const requiredField of librarySlide.requiredFields) {
+        if (!fieldValues[requiredField]) {
+          fail(`Slide ${slide.id} is missing required field ${requiredField} for library slide ${librarySlide.slideId}.`);
+        }
+      }
+      if (librarySlide.requiredFields.length > 0 || Object.keys(fieldValues).length > 0) {
+        pres = pres.addSlide("library", librarySlide.sourceSlideNumber, async (automizerSlide: any) => {
+          const replacements = Object.entries(fieldValues).map(([replace, text]) => ({ replace, by: { text } }));
+          const elements = await automizerSlide.getAllTextElementIds();
+          for (const element of elements) {
+            automizerSlide.modifyElement(element, [modify.replaceText(replacements)]);
+          }
+        });
+        operations.push({
+          slideId: slide.id,
+          operation: "populate-library-slide",
+          librarySlideId: librarySlide.slideId,
+          fields: Object.keys(fieldValues).sort()
+        });
+      } else {
+        pres = pres.addSlide("library", librarySlide.sourceSlideNumber);
+        operations.push({ slideId: slide.id, operation: "copy-library-slide", librarySlideId: librarySlide.slideId });
+      }
       continue;
     }
 
@@ -101,4 +123,16 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
   await pres.write("deck.pptx");
   await writeFile(operationsPath, operations.map((operation) => JSON.stringify(operation)).join("\n") + "\n", "utf8");
   return { deckPath, operationsPath, slideCount: spec.slides.length };
+}
+
+function fieldValuesForSlide(slide: DeckSpecSlide): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const block of slide.content ?? []) {
+    for (const [key, value] of Object.entries(block.fields ?? {})) {
+      if (typeof value === "string" && value.trim()) {
+        values[key] = value;
+      }
+    }
+  }
+  return values;
 }
