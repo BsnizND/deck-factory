@@ -1,3 +1,5 @@
+import os from "node:os";
+
 export interface OpenClawCommand {
   command: string;
   argsPrefix: string[];
@@ -13,7 +15,7 @@ export interface OpenClawSshTarget {
   host: string;
 }
 
-export const DEFAULT_OPENCLAW_COMMAND = "ssh snizserver openclaw";
+export const DEFAULT_OPENCLAW_COMMAND = isSnizserverHost() ? "openclaw" : "ssh snizserver openclaw";
 export const DEFAULT_OPENCLAW_AGENT = "jay";
 
 export function resolveOpenClawCommand(input?: string): OpenClawCommand {
@@ -98,4 +100,8 @@ function shellQuote(value: string): string {
     return value;
   }
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function isSnizserverHost(): boolean {
+  return os.hostname().toLowerCase().includes("snizserver");
 }
