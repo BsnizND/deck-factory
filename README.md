@@ -76,6 +76,7 @@ The workflow should support:
 
 ## Repo Map
 
+- [plan.md](plan.md): the end-to-end implementation plan.
 - [docs/idea.md](docs/idea.md): the fuller product concept.
 - [docs/architecture.md](docs/architecture.md): proposed system shape and module boundaries.
 - [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
