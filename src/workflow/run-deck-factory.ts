@@ -6,6 +6,7 @@ import { buildDeck } from "./build-deck.js";
 import { runOpenClawJsonWorker } from "../ai/openclaw-json-worker.js";
 import { fail } from "../errors.js";
 import { DEFAULT_OPENCLAW_AGENT, resolveOpenClawCommand, resolveSimpleSshTarget } from "../openclaw/command.js";
+import { assertPowerPointFileRole, type PowerPointFileRoleRecord } from "../powerpoint/file-roles.js";
 import { inspectTemplate } from "../registry/template-registry.js";
 import { loadSlideLibrary } from "../registry/slide-library.js";
 import { loadStylePack } from "../registry/style-pack.js";
@@ -36,11 +37,18 @@ export interface RunDeckFactoryResult {
   qaReportPath: string;
 }
 
+interface RunPowerPointManifest {
+  version: string;
+  inputs: Array<Pick<PowerPointFileRoleRecord, "role" | "portablePath" | "extension" | "status">>;
+  output: Pick<PowerPointFileRoleRecord, "role" | "portablePath" | "extension" | "status">;
+}
+
 export async function runDeckFactory(options: {
   styleId: string;
   outDir: string;
   handoffPath?: string;
   specPath?: string;
+  referenceDeckPath?: string;
   plannerAgent?: string;
   maxRepairAttempts?: number;
   openclawCommand?: string;
@@ -53,12 +61,21 @@ export async function runDeckFactory(options: {
   }
 
   const runDir = resolveFromCwd(options.outDir);
+  const referenceDeck = options.referenceDeckPath
+    ? await assertPowerPointFileRole(options.referenceDeckPath, "reference-deck")
+    : null;
+  await writePowerPointManifest({
+    runDir,
+    inputs: referenceDeck ? [referenceDeck] : [],
+    outputPath: path.join(runDir, "deck.pptx")
+  });
   const specPath = options.specPath
     ? await prepareProvidedSpec(options.specPath, options.styleId, runDir)
     : await planSpecWithOpenClaw({
         handoffPath: options.handoffPath!,
         styleId: options.styleId,
         runDir,
+        referenceDeck,
         plannerAgent: options.plannerAgent,
         openclawCommand: options.openclawCommand
       });
@@ -130,6 +147,7 @@ async function planSpecWithOpenClaw(options: {
   handoffPath: string;
   styleId: string;
   runDir: string;
+  referenceDeck: PowerPointFileRoleRecord | null;
   plannerAgent?: string;
   openclawCommand?: string;
 }): Promise<string> {
@@ -159,7 +177,8 @@ async function planSpecWithOpenClaw(options: {
       style,
       template,
       templateProfile,
-      slideLibraries
+      slideLibraries,
+      referenceDeck: options.referenceDeck
     },
     prompt: [
       "Turn the skill handoff into a Deck Factory deck-spec.",
@@ -174,6 +193,25 @@ async function planSpecWithOpenClaw(options: {
   const runSpecPath = path.join(options.runDir, "deck-spec.json");
   await writeJsonFile(runSpecPath, result.output);
   return runSpecPath;
+}
+
+async function writePowerPointManifest(options: {
+  runDir: string;
+  inputs: PowerPointFileRoleRecord[];
+  outputPath: string;
+}): Promise<void> {
+  const output = await assertPowerPointFileRole(options.outputPath, "generated-output");
+  const manifest: RunPowerPointManifest = {
+    version: "deck-factory.powerpoint-file-roles.v1",
+    inputs: options.inputs.map(({ role, portablePath, extension, status }) => ({ role, portablePath, extension, status })),
+    output: {
+      role: output.role,
+      portablePath: output.portablePath,
+      extension: output.extension,
+      status: output.status
+    }
+  };
+  await writeJsonFile(path.join(options.runDir, "powerpoint-files.json"), manifest);
 }
 
 async function repairSpecWithOpenClaw(options: {
@@ -205,6 +243,8 @@ async function repairSpecWithOpenClaw(options: {
       "Return a complete replacement deck-spec JSON object.",
       "Keep the same style id and factual evidence.",
       "Prefer smaller text, simpler layouts, fewer bullets, or alternate registered layouts over inventing new content.",
+      "If QA reports text-length-overflow, keep generated slide body text at or under the reported maxCharacters value.",
+      "If QA reports long-bullet-overflow, rewrite each bullet to stay under the reported maxCharacters value.",
       "Do not claim that missing tools or renderer prerequisites are fixed by editing the spec."
     ].join("\n")
   });

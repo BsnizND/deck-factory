@@ -11,7 +11,13 @@ import { assertReadableFile, ensureDir, readJsonFile, resolveFromCwd, writeJsonF
 const execFileAsync = promisify(execFile);
 
 interface DeckSpec {
-  slides: unknown[];
+  slides: Array<{
+    id?: string;
+    source?: string;
+    layout?: string;
+    title?: string;
+    content?: Array<{ text?: string; items?: string[] }>;
+  }>;
 }
 
 export interface QaReport {
@@ -57,10 +63,12 @@ export async function qaDeck(options: {
     await validateSchema("deck-spec", spec);
     const slideCount = await countPptxSlides(deckPath);
     const slideCountMatch = slideCount === spec.slides.length;
+    const textOverflowFindings = deterministicTextOverflowFindings(spec);
     report = {
       ...report,
       renderStatus: "passed",
       slideCountMatch,
+      textOverflowFindings,
       screenshotEvaluatorNotes: slideCountMatch
         ? []
         : [
@@ -110,7 +118,13 @@ export async function qaDeck(options: {
 
   report = {
     ...report,
-    status: report.renderStatus === "passed" && report.slideCountMatch && report.rasterizationStatus === "passed" ? "passed" : "failed"
+    status:
+      report.renderStatus === "passed" &&
+      report.slideCountMatch &&
+      report.rasterizationStatus === "passed" &&
+      !hasBlockingFindings(report)
+        ? "passed"
+        : "failed"
   };
   await validateSchema("qa-report", report);
   await writeJsonFile(reportPath, report);
@@ -250,6 +264,59 @@ function emptyReport(): QaReport {
     screenshotEvaluatorNotes: [],
     status: "failed"
   };
+}
+
+function deterministicTextOverflowFindings(spec: DeckSpec): unknown[] {
+  const findings: unknown[] = [];
+  for (const slide of spec.slides) {
+    if (slide.source === "library") {
+      continue;
+    }
+    const body = bodyTextForSlide(slide);
+    const limit = slide.layout === "title" ? 260 : 700;
+    if (body.length > limit) {
+      findings.push({
+        type: "text-length-overflow",
+        slideId: slide.id ?? "unknown",
+        layout: slide.layout ?? "unknown",
+        characterCount: body.length,
+        maxCharacters: limit,
+        message: `Slide body content is too long for the v0 ${slide.layout ?? "unknown"} layout. Shorten, split, or move detail to notes.`
+      });
+    }
+    for (const block of slide.content ?? []) {
+      for (const item of block.items ?? []) {
+        if (item.length > 180) {
+          findings.push({
+            type: "long-bullet-overflow",
+            slideId: slide.id ?? "unknown",
+            characterCount: item.length,
+            maxCharacters: 180,
+            message: "One bullet is too long for reliable PowerPoint layout. Shorten it or split it into multiple bullets."
+          });
+        }
+      }
+    }
+  }
+  return findings;
+}
+
+function bodyTextForSlide(slide: DeckSpec["slides"][number]): string {
+  return (slide.content ?? [])
+    .map((block) => block.text ?? block.items?.join("\n") ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function hasBlockingFindings(report: QaReport): boolean {
+  return (
+    report.missingAssets.length > 0 ||
+    report.textOverflowFindings.length > 0 ||
+    report.clippingFindings.length > 0 ||
+    report.outOfBoundsFindings.length > 0 ||
+    report.overlapFindings.length > 0 ||
+    report.contrastWarnings.length > 0
+  );
 }
 
 function failReport(report: QaReport, note: unknown): QaReport {

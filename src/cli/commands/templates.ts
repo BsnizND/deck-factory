@@ -10,13 +10,18 @@ export function registerTemplatesCommand(program: Command): void {
     .description("Register a prepared .pptx template deck and cache its extracted profile.")
     .requiredOption("--id <id>", "Stable style/template id, e.g. snizco-agency.")
     .requiredOption("--name <name>", "Display name.")
-    .requiredOption("--template-deck <path>", "Prepared .pptx template deck.")
+    .option("--template-deck <path>", "Prepared .pptx template deck with representative dummy slides. Preferred v0 input.")
+    .option("--powerpoint-template <path>", "Future .potx template input role. Fails closed in v0 with preparation guidance.")
     .option("--force", "Force re-extraction even if the fingerprint is current.")
-    .action(async (options: { id: string; name: string; templateDeck: string; force?: boolean }) => {
+    .action(async (options: { id: string; name: string; templateDeck?: string; powerpointTemplate?: string; force?: boolean }) => {
+      if (Boolean(options.templateDeck) === Boolean(options.powerpointTemplate)) {
+        throw new Error("Provide exactly one template input role: --template-deck or --powerpoint-template.");
+      }
       const entry = await registerTemplate({
         templateId: options.id,
         displayName: options.name,
-        templateDeckPath: options.templateDeck,
+        templateDeckPath: options.templateDeck ?? options.powerpointTemplate!,
+        sourceFileRole: options.templateDeck ? "template-deck" : "powerpoint-template",
         force: options.force
       });
       await saveStylePack(

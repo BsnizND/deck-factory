@@ -4,6 +4,7 @@
     {
       "templateId": "snizco-agency",
       "displayName": "Snizco Agency",
+      "sourceFileRole": "template-deck",
       "sourceTemplateDeckPath": "samples/snizco-agency/template.pptx",
       "sourceContentHash": "df5fbc4e21285fedc081e23f584f78c9cdb8effe5a4de3255d1f8df2fcf0b6f5",
       "extractorVersion": "deck-factory.extractor.v0",

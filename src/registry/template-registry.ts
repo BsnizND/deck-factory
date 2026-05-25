@@ -6,6 +6,7 @@ import {
   TEMPLATE_REGISTRY_SCHEMA_VERSION
 } from "../constants.js";
 import { fail } from "../errors.js";
+import { assertPowerPointFileRole, type PowerPointFileRole } from "../powerpoint/file-roles.js";
 import { validateSchema } from "../schema/validate.js";
 import { assertReadableFile, ensureDir, pathExists, readJsonFile, resolveFromCwd, toPortablePath, writeJsonFile, writeTextFile } from "../util/fs.js";
 import { fingerprintFile } from "./fingerprint.js";
@@ -21,6 +22,7 @@ export interface TemplateRegistry {
 export interface TemplateRegistryEntry {
   templateId: string;
   displayName: string;
+  sourceFileRole: "template-deck";
   sourceTemplateDeckPath: string;
   sourceContentHash: string;
   extractorVersion: string;
@@ -52,10 +54,11 @@ export async function registerTemplate(options: {
   templateId: string;
   displayName: string;
   templateDeckPath: string;
+  sourceFileRole?: Extract<PowerPointFileRole, "template-deck" | "powerpoint-template">;
   force?: boolean;
 }): Promise<TemplateRegistryEntry> {
-  const sourcePath = resolveFromCwd(options.templateDeckPath);
-  await assertPptx(sourcePath, "template deck");
+  const fileRole = await assertPowerPointFileRole(options.templateDeckPath, options.sourceFileRole ?? "template-deck");
+  const sourcePath = fileRole.path;
   const sourceContentHash = await fingerprintFile(sourcePath);
   const registry = await loadTemplateRegistry();
   const existing = registry.templates.find((entry) => entry.templateId === options.templateId);
@@ -87,6 +90,7 @@ export async function registerTemplate(options: {
   await writeTemplatePrepReport(prepReportPath, profile, {
     templateId: options.templateId,
     displayName: options.displayName,
+    sourceFileRole: "template-deck",
     sourceTemplateDeckPath: toPortablePath(sourcePath),
     sourceContentHash,
     preparationStatus: profile.preparationStatus,
@@ -97,6 +101,7 @@ export async function registerTemplate(options: {
   const next: TemplateRegistryEntry = {
     templateId: options.templateId,
     displayName: options.displayName,
+    sourceFileRole: "template-deck",
     sourceTemplateDeckPath: toPortablePath(sourcePath),
     sourceContentHash,
     extractorVersion: EXTRACTOR_VERSION,
@@ -152,7 +157,13 @@ async function writeTemplatePrepReport(
   profile: TemplateProfile,
   entry: Pick<
     TemplateRegistryEntry,
-    "templateId" | "displayName" | "sourceTemplateDeckPath" | "sourceContentHash" | "preparationStatus" | "supportedArchetypes"
+    | "templateId"
+    | "displayName"
+    | "sourceFileRole"
+    | "sourceTemplateDeckPath"
+    | "sourceContentHash"
+    | "preparationStatus"
+    | "supportedArchetypes"
   >
 ): Promise<void> {
   const findings = profile.preparationFindings
@@ -167,6 +178,7 @@ async function writeTemplatePrepReport(
       `# Template Prep Report: ${entry.displayName}`,
       "",
       `- Template id: ${entry.templateId}`,
+      `- Source file role: ${entry.sourceFileRole}`,
       `- Source deck: ${entry.sourceTemplateDeckPath}`,
       `- Source hash: ${entry.sourceContentHash}`,
       `- Preparation status: ${entry.preparationStatus}`,

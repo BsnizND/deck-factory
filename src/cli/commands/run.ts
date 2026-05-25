@@ -11,6 +11,7 @@ export function registerRunCommand(program: Command): void {
     .requiredOption("--out <dir>", "Output run directory.")
     .option("--handoff <path>", "Skill deck handoff JSON. Uses OpenClaw to plan deck-spec.json.")
     .option("--spec <path>", "Existing deck spec JSON. Skips OpenClaw planning but still validates, renders, and QA checks.")
+    .option("--reference-deck <path>", "Optional .pptx source/reference deck. Read-only context; never treated as the template.")
     .option("--planner-agent <agent>", `OpenClaw agent for deck planning. Defaults to ${DEFAULT_OPENCLAW_AGENT}.`)
     .option(
       "--openclaw-command <command>",
@@ -23,6 +24,7 @@ export function registerRunCommand(program: Command): void {
         out: string;
         handoff?: string;
         spec?: string;
+        referenceDeck?: string;
         plannerAgent?: string;
         openclawCommand?: string;
         maxRepairAttempts?: string;
@@ -33,6 +35,7 @@ export function registerRunCommand(program: Command): void {
           outDir: options.out,
           handoffPath: options.handoff,
           specPath: options.spec,
+          referenceDeckPath: options.referenceDeck,
           plannerAgent: options.plannerAgent,
           openclawCommand: options.openclawCommand,
           maxRepairAttempts
