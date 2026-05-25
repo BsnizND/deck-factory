@@ -83,14 +83,17 @@ The differentiator is not just rendering slides. It is reliable orchestration:
 
 That makes Deck Factory closer to a deck production system than a slide toy.
 
-## Open Questions
+## Answered V0 Decisions
 
-- Should the first renderer wrap `pptx-automizer`, `PptxGenJS`, `agent-slides`, or a thin internal adapter?
-- What should the first deck spec schema include without becoming too large?
-- How much template extraction can be deterministic, and where should agent interpretation help?
-- Which QA checks should be mandatory for v0?
-- Should the repair loop rewrite the deck spec, the slide operations, or both?
-- What is the right minimum artifact bundle for client approval?
+- Renderer: use a thin Deck Factory adapter over `pptx-automizer`, with `PptxGenJS` available underneath for generated elements.
+- Template input: accept normal `.pptx` files with representative dummy slides for v0.
+- Schema: keep the authored deck spec semantic: deck intent, template reference, assets, ordered slides, content blocks, citations, and constraints.
+- Template extraction: use deterministic code for factual PowerPoint metadata, then use the agent to interpret layout purpose and choose patterns.
+- QA: require screenshot rendering, deterministic checks, and an agentic screenshot review and repair loop.
+- Repair: rewrite the deck spec first; patch slide operations only for renderer-specific technical issues.
+- Handoff: deliver `deck.pptx` as the primary artifact while keeping QA evidence internal unless requested.
+
+See [decisions.md](decisions.md) for the full decision record.
 
 ## First Useful Demo
 
@@ -105,3 +108,5 @@ The first demo should be small and honest:
 7. Produce a QA report and approval bundle.
 
 If any step fails, the run should stop with the exact missing prerequisite.
+
+The first repo-provided templates should cover business review, strategy readout, and sales proposal use cases so users can understand how to prepare their own source decks.

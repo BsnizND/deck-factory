@@ -85,14 +85,14 @@ Responsibilities:
 - translate structured slide intent into deterministic PowerPoint operations
 - keep output editable
 - emit operation logs for debugging and repair
-- start with an adapter around existing libraries before writing a custom renderer
+- wrap existing libraries instead of writing a custom renderer
 
-Candidate renderer layers:
+V0 renderer decision:
 
-- `pptx-automizer`
-- `PptxGenJS`
-- `agent-slides`
-- `pptx.dev` or OpenPresentation adapters where appropriate
+- Start with a thin Deck Factory adapter over `pptx-automizer`.
+- Use `PptxGenJS` through that layer when new dynamic elements are required.
+- Study `agent-slides` as a reference architecture for extraction, validation, and agent workflow ergonomics.
+- Keep the adapter boundary narrow enough that another renderer can be swapped in later.
 
 ## Visual QA
 
@@ -127,7 +127,8 @@ Output:
 Responsibilities:
 
 - let the model inspect concrete failures
-- revise layout choices, copy length, asset usage, or slide splits
+- revise the deck spec first: layout choices, copy length, asset usage, or slide splits
+- patch slide operations directly only for renderer-specific technical fixes that cannot be represented cleanly in the spec
 - re-render until the deck passes required checks or fails with a clear blocker
 
 ## Approval Bundler
@@ -145,7 +146,8 @@ Output:
 
 Responsibilities:
 
-- collect the deliverable and evidence in one folder
+- deliver the `.pptx` as the primary user-facing artifact
+- keep screenshots, QA reports, operation logs, source specs, and repair attempts as internal evidence by default
 - summarize what was rendered, what was verified, and what needs human review
 - preserve artifacts for client or internal QA
 

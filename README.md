@@ -78,6 +78,7 @@ The workflow should support:
 
 - [docs/idea.md](docs/idea.md): the fuller product concept.
 - [docs/architecture.md](docs/architecture.md): proposed system shape and module boundaries.
+- [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
 
 ## License
