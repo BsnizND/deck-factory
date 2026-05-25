@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countPptxSlides } from "../src/qa/qa-deck.js";
+import { resolveStylePack } from "../src/registry/style-pack.js";
 import { readJsonFile } from "../src/util/fs.js";
 import { validateSchema } from "../src/schema/validate.js";
 
@@ -20,5 +21,10 @@ describe("schema fixtures", () => {
 
   it("counts slides in the sample template deck", async () => {
     await expect(countPptxSlides("samples/snizco-agency/template.pptx")).resolves.toBe(4);
+  });
+
+  it("resolves styles by display name for agent requests", async () => {
+    await expect(resolveStylePack("Snizco Agency")).resolves.toMatchObject({ styleId: "snizco-agency" });
+    await expect(resolveStylePack("snizco agency")).resolves.toMatchObject({ styleId: "snizco-agency" });
   });
 });

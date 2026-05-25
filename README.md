@@ -6,9 +6,9 @@ The core bet is simple: great decks should not be generated as disposable images
 
 ## Status
 
-Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw-backed screenshot review, spec-first repair, and PowerPoint package integrity checks.
+Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw-backed screenshot review, spec-first repair, PowerPoint package integrity checks, and a repo-shipped OpenClaw skill package.
 
-It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to the configured OpenClaw command and worker agent. The repo is buildable and runnable from source, but it is not yet a drop-in public OpenClaw integration until the repo-shipped OpenClaw skill and portable install docs are added.
+It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to the configured OpenClaw command and worker agent. Public defaults prefer local `openclaw`; remote commands and personal worker agents are deployment overrides.
 
 ## The Pipeline
 
@@ -83,6 +83,7 @@ The workflow should support:
 - [docs/execution-plan.md](docs/execution-plan.md): ordered remaining work to finish the project.
 - [docs/openclaw-integration.md](docs/openclaw-integration.md): the plan for making Deck Factory portable for OpenClaw users.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
+- [docs/template-library-onboarding.md](docs/template-library-onboarding.md): how to prepare and register templates and slide libraries.
 
 ## Current CLI
 
@@ -95,6 +96,8 @@ npm run cli -- libraries register --style snizco-agency --library-deck samples/s
 npm run cli -- build --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
 npm run cli -- qa --deck artifacts/sample-build/deck.pptx --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
 npm run cli -- run --style snizco-agency --spec samples/snizco-agency/overcrowded-deck-spec.json --out artifacts/overcrowded-repair --max-repair-attempts 1
+npm run check:skill
+npm run smoke:public
 ```
 
 The end-to-end entrypoint is:
@@ -103,18 +106,43 @@ The end-to-end entrypoint is:
 npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c
 ```
 
-`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The default OpenClaw target is `ssh snizserver openclaw` and the default worker agent is `jay`; override with `DECK_FACTORY_OPENCLAW_COMMAND`, `--openclaw-command`, or `--planner-agent` only when deploying somewhere else. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
+`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The public default OpenClaw command is local `openclaw`, and the public default planner agent is `deck-factory-planner`. Override with `DECK_FACTORY_OPENCLAW_COMMAND`, `DECK_FACTORY_OPENCLAW_AGENT`, `--openclaw-command`, or `--planner-agent` for local deployments. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
 
-## Public OpenClaw Integration Gap
+If `--out` is omitted for a handoff run, Deck Factory writes to:
 
-The current repo is not yet packaged so an arbitrary OpenClaw user can clone it and immediately make their agent call Deck Factory naturally. The remaining portability work is tracked in [docs/openclaw-integration.md](docs/openclaw-integration.md). In short, the repo still needs:
+```text
+artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx
+```
 
-- a shipped `openclaw/skills/deck-factory/SKILL.md`
-- portable OpenClaw install and configuration notes
-- generic worker-agent examples that do not assume Brian's `snizserver` or `jay`
-- a documented output-path convention for agent runs
-- a full "bring your own template and slide library" walkthrough
-- a smoke test proving a clean clone can run from a skill handoff to `deck.pptx`
+## OpenClaw Skill
+
+The repo ships an OpenClaw skill at:
+
+```text
+openclaw/skills/deck-factory/SKILL.md
+```
+
+Install or reference it from OpenClaw with the local skill directory:
+
+```bash
+openclaw skills install ./openclaw/skills/deck-factory --as deck-factory
+openclaw skills check --json
+```
+
+For an agent-specific install:
+
+```bash
+openclaw skills install ./openclaw/skills/deck-factory --as deck-factory --agent <agent-id>
+openclaw skills check --agent <agent-id> --json
+```
+
+Run a full smoke with OpenClaw when a worker agent is configured:
+
+```bash
+DECK_FACTORY_OPENCLAW_AGENT=deck-factory-planner npm run smoke:public -- --with-openclaw
+```
+
+For deployments where OpenClaw is reached through a remote command, set `DECK_FACTORY_OPENCLAW_COMMAND` explicitly. The public docs and skill do not require a private host or personal agent id.
 
 ## License
 

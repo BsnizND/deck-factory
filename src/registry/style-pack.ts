@@ -1,8 +1,9 @@
+import { readdir } from "node:fs/promises";
 import { STYLE_PACK_SCHEMA_VERSION } from "../constants.js";
 import { fail } from "../errors.js";
 import { validateSchema } from "../schema/validate.js";
 import { pathExists, readJsonFile, writeJsonFile } from "../util/fs.js";
-import { stylePath } from "./paths.js";
+import { stylePath, stylesDir } from "./paths.js";
 
 export interface StylePack {
   version: string;
@@ -57,7 +58,54 @@ export async function loadStylePack(styleId: string): Promise<StylePack> {
   return style;
 }
 
+export async function listStylePacks(): Promise<StylePack[]> {
+  if (!(await pathExists(stylesDir()))) {
+    return [];
+  }
+  const files = (await readdir(stylesDir())).filter((fileName) => fileName.endsWith(".json")).sort();
+  const styles: StylePack[] = [];
+  for (const fileName of files) {
+    const style = await readJsonFile<StylePack>(stylePath(fileName.replace(/\.json$/, "")));
+    await validateSchema("style-pack", style);
+    styles.push(style);
+  }
+  return styles;
+}
+
+export async function resolveStylePack(input: string): Promise<StylePack> {
+  const styles = await listStylePacks();
+  const normalizedInput = normalizeStyleName(input);
+  const exact = styles.find((style) => style.styleId === input);
+  if (exact) {
+    return exact;
+  }
+  const displayMatch = styles.find((style) => style.displayName === input);
+  if (displayMatch) {
+    return displayMatch;
+  }
+  const normalized = styles.find(
+    (style) => normalizeStyleName(style.styleId) === normalizedInput || normalizeStyleName(style.displayName) === normalizedInput
+  );
+  if (normalized) {
+    return normalized;
+  }
+  const knownStyles = styles.map((style) => `${style.displayName} (${style.styleId})`).join(", ") || "none";
+  fail(
+    `Style is not registered: ${input}. Register a prepared .pptx template deck first with ` +
+      `deck-factory templates register --id <style-id> --name "<display name>" --template-deck <path>. Known styles: ${knownStyles}`
+  );
+}
+
 export async function saveStylePack(style: StylePack): Promise<void> {
   await validateSchema("style-pack", style);
   await writeJsonFile(stylePath(style.styleId), style);
+}
+
+function normalizeStyleName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }

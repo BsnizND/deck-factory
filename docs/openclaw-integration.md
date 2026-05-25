@@ -1,6 +1,6 @@
 # OpenClaw Integration Plan
 
-This document defines the remaining work required for Deck Factory to be usable by any OpenClaw user, not just by the original local development setup.
+This document defines how Deck Factory integrates with OpenClaw for public, portable use.
 
 ## Current State
 
@@ -12,7 +12,7 @@ Deck Factory is a working local CLI and OpenClaw-backed workflow from source:
 - the renderer produces editable `deck.pptx`
 - QA rasterizes slides, validates package integrity, and can ask OpenClaw for screenshot review and repair
 
-The missing layer is the agent-facing package. There is not yet a repo-shipped OpenClaw skill that tells an OpenClaw agent how to discover styles, register templates, consume upstream skill handoffs, choose output paths, and return the final deck.
+The repo now ships the agent-facing package under `openclaw/skills/deck-factory/`. The skill tells an OpenClaw agent how to discover styles, register templates, consume upstream skill handoffs, choose output paths, run QA, and return the final deck.
 
 ## Public Integration Goal
 
@@ -36,7 +36,7 @@ The agent must not re-extract a current registered template or slide library on 
 
 ## Repo-Shipped Skill
 
-Add:
+Included:
 
 ```text
 openclaw/
@@ -50,7 +50,7 @@ openclaw/
         static-skill-check.mjs
 ```
 
-The skill must define:
+The skill defines:
 
 - when to use Deck Factory
 - non-goals, including not hand-editing OOXML or bypassing the CLI
@@ -64,6 +64,12 @@ The skill must define:
 - final response contract
 - fail-closed blockers
 
+Run its static check:
+
+```bash
+npm run check:skill
+```
+
 ## Portable Defaults
 
 The public path should not assume `ssh snizserver openclaw` or agent `jay`.
@@ -76,6 +82,20 @@ Use this resolution order:
 4. fail with a setup message if OpenClaw is unavailable
 
 Brian-specific defaults can remain documented as local deployment notes, not as the public default.
+
+Install the skill from a clean clone:
+
+```bash
+openclaw skills install ./openclaw/skills/deck-factory --as deck-factory
+openclaw skills check --json
+```
+
+Or install it for a specific agent:
+
+```bash
+openclaw skills install ./openclaw/skills/deck-factory --as deck-factory --agent <agent-id>
+openclaw skills check --agent <agent-id> --json
+```
 
 ## Template And Library Onboarding
 
@@ -182,8 +202,30 @@ The public OpenClaw integration is complete when:
 11. missing OpenClaw, model credentials, rasterizer tools, templates, assets, or QA evidence fail closed
 12. final handoff returns `deck.pptx` as the primary artifact
 
-## Next Implementation Slice
+## Smoke Tests
 
-The next implementation slice should focus on public OpenClaw usability, not new rendering features.
+Run the deterministic public smoke:
 
-Build the repo-shipped skill, portable setup docs, static checks, and one clean-clone smoke path. Do not expand the deck spec or renderer surface unless the integration work exposes a blocking gap.
+```bash
+npm run smoke:public
+```
+
+Run the full OpenClaw handoff smoke once a worker agent is configured:
+
+```bash
+DECK_FACTORY_OPENCLAW_AGENT=deck-factory-planner npm run smoke:public -- --with-openclaw
+```
+
+If the worker agent lives behind a custom command, provide:
+
+```bash
+DECK_FACTORY_OPENCLAW_COMMAND="<openclaw command>" \
+DECK_FACTORY_OPENCLAW_AGENT="<agent-id>" \
+npm run smoke:public -- --with-openclaw
+```
+
+The full smoke produces:
+
+```text
+artifacts/chick-fil-a-5c-research-report-snizco-agency/deck.pptx
+```

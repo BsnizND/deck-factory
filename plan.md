@@ -49,7 +49,7 @@ Why `.pptx` is preferred for v0:
 
 `.potx` support can come later. When added, Deck Factory should normalize `.potx` to an internal `.pptx` working copy before extraction. If that normalization fails, the run should stop.
 
-The repo should ship sample templates so users can understand what a useful source deck looks like.
+The repo ships sample templates so users can understand what a useful source deck looks like.
 
 ### PowerPoint File Roles
 
@@ -564,9 +564,9 @@ Large context should be chunked through the same session when needed. Chunks are
 
 ### OpenClaw Skill
 
-The repo should ship an OpenClaw skill that tells agents how to use Deck Factory.
+The repo ships an OpenClaw skill at `openclaw/skills/deck-factory/SKILL.md` that tells agents how to use Deck Factory.
 
-The skill should:
+The skill:
 
 - require a prepared `.pptx` template deck or stop with a preparation request
 - resolve natural style names through the Deck Factory registry
@@ -583,7 +583,7 @@ The skill should:
 
 The public skill must not assume Brian-specific infrastructure. `ssh snizserver openclaw` and agent `jay` are local deployment overrides, not public defaults.
 
-The repo should include a static skill check that verifies:
+The repo includes `npm run check:skill`, a static skill check that verifies:
 
 - the skill file exists
 - required sections are present

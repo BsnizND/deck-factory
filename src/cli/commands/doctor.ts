@@ -26,7 +26,11 @@ export function registerDoctorCommand(program: Command): void {
     .command("doctor")
     .description("Report Deck Factory prerequisite readiness without mutating state.")
     .option("--json", "Print JSON output.")
-    .option("--worker-agent <id>", `OpenClaw worker agent id to verify. Defaults to ${DEFAULT_OPENCLAW_AGENT}.`, DEFAULT_OPENCLAW_AGENT)
+    .option(
+      "--worker-agent <id>",
+      `OpenClaw worker agent id to verify. Defaults to DECK_FACTORY_OPENCLAW_AGENT or ${DEFAULT_OPENCLAW_AGENT}.`,
+      DEFAULT_OPENCLAW_AGENT
+    )
     .option(
       "--openclaw-command <command>",
       `Command used to invoke OpenClaw. Defaults to DECK_FACTORY_OPENCLAW_COMMAND or '${DEFAULT_OPENCLAW_COMMAND}'.`

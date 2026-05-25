@@ -16,9 +16,13 @@ Deck Factory currently has:
 - screenshot rasterization through LibreOffice, ImageMagick, and Ghostscript
 - deterministic QA for slide count, text length, rasterization, and PowerPoint package integrity
 - OpenClaw JSON worker calls for planning, screenshot review, and spec-first repair
+- a repo-shipped OpenClaw skill package under `openclaw/skills/deck-factory`
+- portable OpenClaw command and worker-agent defaults with env/CLI overrides
+- deterministic handoff output directories when `--out` is omitted
+- public smoke scripts
 - a sample 5C handoff path
 
-The main remaining gap is not "make slides render." The main remaining gap is "make this usable by an arbitrary OpenClaw user from a clean clone."
+The main remaining gap after the public integration slice is deeper renderer/QA hardening and richer real-world template coverage.
 
 ## End State
 
@@ -39,7 +43,9 @@ The repo must not require Brian-specific paths, `snizserver`, or a `jay` agent f
 
 ## Work Package 1: Public OpenClaw Skill
 
-Deliver:
+Status: implemented.
+
+Delivered:
 
 - `openclaw/skills/deck-factory/SKILL.md`
 - skill examples under `openclaw/skills/deck-factory/examples/`
@@ -69,7 +75,9 @@ Acceptance:
 
 ## Work Package 2: Portable Configuration
 
-Deliver:
+Status: implemented.
+
+Delivered:
 
 - public default command behavior that prefers local `openclaw`
 - env var support for worker agent defaults, including `DECK_FACTORY_OPENCLAW_AGENT`
@@ -85,7 +93,9 @@ Acceptance:
 
 ## Work Package 3: Style, Template, And Library Onboarding
 
-Deliver:
+Status: implemented for public v0 onboarding.
+
+Delivered:
 
 - clear "bring your own template" guide
 - clear "bring your own slide library" guide
@@ -103,7 +113,9 @@ Acceptance:
 
 ## Work Package 4: Agent Output Convention
 
-Deliver:
+Status: implemented.
+
+Delivered:
 
 - deterministic run directory naming for agent-initiated runs:
 
@@ -123,7 +135,9 @@ Acceptance:
 
 ## Work Package 5: Clean-Clone Smoke Path
 
-Deliver:
+Status: implemented.
+
+Delivered:
 
 - one documented command bundle or script that validates a fresh clone
 - one sample path from template registration to handoff run to `deck.pptx`
@@ -151,7 +165,7 @@ Acceptance:
 
 ## Work Package 6: Remaining Renderer And QA Hardening
 
-Do this only after the public OpenClaw package path exists.
+Status: next major product-hardening track.
 
 Deliver:
 
@@ -168,6 +182,8 @@ Acceptance:
 - QA findings are clear enough for an agent to repair the spec
 
 ## Work Package 7: Publish-Ready Polish
+
+Status: partially implemented; continue after renderer/QA hardening.
 
 Deliver:
 

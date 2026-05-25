@@ -9,7 +9,7 @@ import { DEFAULT_OPENCLAW_AGENT, resolveOpenClawCommand, resolveSimpleSshTarget 
 import { assertPowerPointFileRole, type PowerPointFileRoleRecord } from "../powerpoint/file-roles.js";
 import { inspectTemplate } from "../registry/template-registry.js";
 import { loadSlideLibrary } from "../registry/slide-library.js";
-import { loadStylePack } from "../registry/style-pack.js";
+import { resolveStylePack } from "../registry/style-pack.js";
 import { validateSchema } from "../schema/validate.js";
 import type { TemplateProfile } from "../template/extract-template-profile.js";
 import { readJsonFile, resolveFromCwd, writeJsonFile } from "../util/fs.js";
@@ -157,7 +157,7 @@ async function planSpecWithOpenClaw(options: {
     fail(`Handoff requested style ${handoff.preferredStyleId}, but run requested ${options.styleId}.`);
   }
 
-  const style = await loadStylePack(options.styleId);
+  const style = await resolveStylePack(options.styleId);
   const template = await inspectTemplate(style.templateId);
   const templateProfile = await readJsonFile<TemplateProfile>(resolveFromCwd(template.cachedProfilePath));
   const slideLibraries = await Promise.all(style.slideLibraries.map((libraryId) => loadSlideLibrary(libraryId)));

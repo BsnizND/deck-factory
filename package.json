@@ -11,7 +11,9 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "cli": "tsx src/cli/index.ts",
-    "generate:samples": "tsx scripts/generate-samples.ts"
+    "generate:samples": "tsx scripts/generate-samples.ts",
+    "check:skill": "node openclaw/skills/deck-factory/tests/static-skill-check.mjs",
+    "smoke:public": "node scripts/public-smoke.mjs"
   },
   "keywords": [
     "pptx",

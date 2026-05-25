@@ -1,5 +1,3 @@
-import os from "node:os";
-
 export interface OpenClawCommand {
   command: string;
   argsPrefix: string[];
@@ -15,8 +13,8 @@ export interface OpenClawSshTarget {
   host: string;
 }
 
-export const DEFAULT_OPENCLAW_COMMAND = isSnizserverHost() ? "openclaw" : "ssh snizserver openclaw";
-export const DEFAULT_OPENCLAW_AGENT = "jay";
+export const DEFAULT_OPENCLAW_COMMAND = "openclaw";
+export const DEFAULT_OPENCLAW_AGENT = process.env.DECK_FACTORY_OPENCLAW_AGENT?.trim() || "deck-factory-planner";
 
 export function resolveOpenClawCommand(input?: string): OpenClawCommand {
   const display = input?.trim() || process.env.DECK_FACTORY_OPENCLAW_COMMAND?.trim() || DEFAULT_OPENCLAW_COMMAND;
@@ -100,8 +98,4 @@ function shellQuote(value: string): string {
     return value;
   }
   return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
-function isSnizserverHost(): boolean {
-  return os.hostname().toLowerCase().includes("snizserver");
 }
