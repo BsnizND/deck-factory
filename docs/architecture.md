@@ -12,6 +12,7 @@ deck-factory
   renderer-adapter
   visual-qa
   repair-loop
+  openclaw-skill
   approval-bundler
 ```
 
@@ -66,6 +67,9 @@ Responsibilities:
 - map content to available layouts
 - request missing assets or facts
 - preserve citations and reviewer notes
+- decide whether each output slide should be generated from a template layout or selected from a registered slide library
+
+The planner is an OpenClaw worker boundary. It receives bounded JSON context, including the handoff, style pack, cached template profile, and slide-library index. It returns only schema-valid `deck-spec.json`.
 
 ## Renderer Adapter
 
@@ -130,6 +134,29 @@ Responsibilities:
 - revise the deck spec first: layout choices, copy length, asset usage, or slide splits
 - patch slide operations directly only for renderer-specific technical fixes that cannot be represented cleanly in the spec
 - re-render until the deck passes required checks or fails with a clear blocker
+
+## OpenClaw Skill
+
+Input:
+
+- user request or upstream `skill-deck-handoff.json`
+- registered style id or user-facing style name
+- optional output directory override
+
+Output:
+
+- final `deck.pptx`
+
+Responsibilities:
+
+- let OpenClaw agents call the local CLI instead of editing PowerPoint files directly
+- resolve style names through the local registry
+- reuse cached template and slide-library profiles when fingerprints are current
+- choose deterministic output paths for agent-initiated runs
+- stop with exact setup guidance when OpenClaw, templates, slide libraries, rasterizers, or credentials are missing
+- keep `deck.pptx` as the primary user-facing artifact
+
+The public skill must not assume Brian-specific hosts, paths, or agent ids. Local overrides belong in environment variables, CLI flags, or OpenClaw user configuration.
 
 ## Approval Bundler
 

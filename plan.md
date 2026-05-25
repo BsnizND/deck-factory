@@ -277,6 +277,50 @@ The handoff contract should include:
 
 Deck Factory then owns template selection, slide mapping, rendering, screenshot QA, and repair.
 
+### Public OpenClaw User Flow
+
+The public OpenClaw experience should be:
+
+```text
+clone repo
+  -> install dependencies
+  -> install or reference Deck Factory OpenClaw skill
+  -> register a prepared `.pptx` template deck once
+  -> optionally register a slide library once
+  -> ask an OpenClaw agent for a deck in that style
+  -> receive `<out>/deck.pptx`
+```
+
+The repo is not considered public-integration ready until a clean OpenClaw user can complete that flow without Brian-specific hostnames, paths, or agent ids.
+
+For user-facing requests such as:
+
+```text
+"Do a 5C Research Report on Chick-fil-A in a deck in Snizco Agency style."
+```
+
+the OpenClaw skill should:
+
+1. identify the upstream research skill and require a schema-valid `skill-deck-handoff.json`
+2. resolve `Snizco Agency style` to a registered style id
+3. reuse current cached template and slide-library profiles
+4. stop and ask for template registration if the style is unknown
+5. choose a deterministic output directory
+6. call `deck-factory run --style <style-id> --handoff <handoff-path> --out <run-dir>`
+7. return the final `deck.pptx`
+
+Agent-initiated output directories should default to:
+
+```text
+artifacts/<subject-slug>-<report-type-slug>-<style-id>/
+```
+
+For example:
+
+```text
+artifacts/chick-fil-a-5c-research-report-snizco-agency/deck.pptx
+```
+
 ### Deck Spec
 
 The v0 deck spec should be semantic, not pixel-positioned.
@@ -403,6 +447,11 @@ deck-factory/
     skills/
       deck-factory/
         SKILL.md
+        examples/
+          chick-fil-a-5c-request.md
+          template-registration.md
+        tests/
+          static-skill-check.mjs
   samples/
     business-review/
       template.pptx
@@ -518,11 +567,27 @@ The repo should ship an OpenClaw skill that tells agents how to use Deck Factory
 The skill should:
 
 - require a prepared `.pptx` template deck or stop with a preparation request
+- resolve natural style names through the Deck Factory registry
+- reuse cached template profiles and slide-library indexes instead of re-extracting on every run
+- register templates and slide libraries only when the user supplies new source files or asks for refresh
 - call the local CLI instead of hand-editing PowerPoint files
 - keep AI judgment behind the configured OpenClaw worker lanes
 - require screenshot QA before calling a deck final
+- require PowerPoint package-integrity QA before calling a deck final
+- choose deterministic output directories for agent-initiated runs
 - return `deck.pptx` as the primary artifact
 - expose internal screenshots and QA evidence only when asked or when explaining failure
+- fail closed when OpenClaw, model credentials, rasterizer tools, templates, slide libraries, assets, or QA evidence are missing
+
+The public skill must not assume Brian-specific infrastructure. `ssh snizserver openclaw` and agent `jay` are local deployment overrides, not public defaults.
+
+The repo should include a static skill check that verifies:
+
+- the skill file exists
+- required sections are present
+- no Brian-specific hostname is required by default
+- examples use portable paths or clearly marked local overrides
+- documented commands match the CLI surface
 
 ### OpenClaw Configuration Expectations
 
@@ -535,6 +600,15 @@ Before any AI step, it should verify:
 - the worker agent has a usable model/auth profile.
 - `openclaw agent --json` returns a parseable envelope on a smoke prompt.
 - required local tools for rendering/rasterization are installed.
+
+Public default resolution order:
+
+1. CLI flags such as `--openclaw-command`, `--planner-agent`, and `--out`
+2. environment variables such as `DECK_FACTORY_OPENCLAW_COMMAND` and `DECK_FACTORY_OPENCLAW_AGENT`
+3. local `openclaw` on `PATH`
+4. fail with setup instructions
+
+Brian-specific remote execution can be documented separately as an operator override.
 
 If any prerequisite is missing, fail with the exact missing prerequisite and the command the operator should run to verify it.
 
@@ -1125,11 +1199,15 @@ Acceptance checks:
 
 Deliverables:
 
-- Agent skill instructions.
+- `openclaw/skills/deck-factory/SKILL.md`.
 - Input/output contract for Codex, OpenClaw, Claude, Cursor, Gemini, and similar agent runners.
 - Examples for using Deck Factory from an agent workflow.
 - Guidance on when to ask for missing templates, assets, facts, or review approval.
 - OpenClaw-native worker/skill installation notes.
+- Style-name resolution rules.
+- Template and slide-library registration workflow.
+- Deterministic output-path convention.
+- Static skill/package check.
 
 Acceptance checks:
 
@@ -1138,6 +1216,30 @@ Acceptance checks:
 - Skill returns `deck.pptx` as the primary artifact.
 - Skill does not hide failures behind dummy data or placeholder outputs.
 - Skill routes AI judgment through OpenClaw worker lanes rather than direct provider calls.
+- Skill does not assume Brian-specific hostnames, paths, or agent ids.
+- Unknown style names produce an explicit template-registration request.
+- Registered styles are reused without re-extraction when fingerprints are current.
+- A clean clone can follow the skill docs from sample handoff to `deck.pptx`.
+
+### Phase 10: Public OpenClaw Integration Hardening
+
+Deliverables:
+
+- `docs/openclaw-integration.md`.
+- README public setup section.
+- Portable OpenClaw defaults.
+- Clean-clone smoke script or documented command bundle.
+- Sample run showing template registration, slide-library registration, handoff planning, render, QA, repair, and final deck.
+
+Acceptance checks:
+
+- `npm install`, `npm run build`, `npm test`, and `npm run cli -- doctor --json` work from a clean clone.
+- The OpenClaw skill can be installed or referenced by a user without editing repo source.
+- The public docs default to local `openclaw` and clearly show how to override the command.
+- A user can register their own `.pptx` template deck and optional slide library.
+- A second run with the same style reuses cached template and library profiles.
+- The final output path is predictable and documented.
+- Failure states produce concrete missing-prerequisite messages.
 
 ## V0 Definition Of Done
 
@@ -1161,6 +1263,10 @@ V0 is complete when Deck Factory can:
 16. Repair at least one common failure by changing the deck spec and rerendering.
 17. Deliver `deck.pptx` as the primary user artifact.
 18. Preserve internal evidence for debugging and reproducibility.
+19. Ship a repo-local OpenClaw skill that can call the workflow.
+20. Provide portable setup docs for non-Brian OpenClaw users.
+21. Prove a clean clone can run from sample handoff to `deck.pptx`.
+22. Avoid Brian-specific hostnames, paths, and agent ids in public defaults.
 
 ## Fail-Closed Rules
 
@@ -1214,3 +1320,7 @@ Do not emit placeholder decks, canned screenshots, fake QA reports, mock citatio
 21. Add OpenClaw screenshot evaluator review.
 22. Add OpenClaw-backed spec-first repair loop.
 23. Wrap the whole path in `deck-factory run --style ... --handoff ...`.
+24. Add `openclaw/skills/deck-factory/SKILL.md`.
+25. Add portable OpenClaw setup docs and examples.
+26. Add a static skill/package check.
+27. Add a clean-clone public integration smoke path.

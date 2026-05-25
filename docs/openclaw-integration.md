@@ -1,0 +1,189 @@
+# OpenClaw Integration Plan
+
+This document defines the remaining work required for Deck Factory to be usable by any OpenClaw user, not just by the original local development setup.
+
+## Current State
+
+Deck Factory is a working local CLI and OpenClaw-backed workflow from source:
+
+- templates can be registered once and reused through cached profiles
+- slide libraries can be registered once and reused through cached indexes
+- `run --handoff` can call OpenClaw JSON workers to draft a `deck-spec.json`
+- the renderer produces editable `deck.pptx`
+- QA rasterizes slides, validates package integrity, and can ask OpenClaw for screenshot review and repair
+
+The missing layer is the agent-facing package. There is not yet a repo-shipped OpenClaw skill that tells an OpenClaw agent how to discover styles, register templates, consume upstream skill handoffs, choose output paths, and return the final deck.
+
+## Public Integration Goal
+
+An OpenClaw user should be able to clone the repo, install dependencies, install the Deck Factory skill, register a prepared PowerPoint template deck once, and then ask an OpenClaw agent:
+
+```text
+Do a 5C research report on Chick-fil-A in a deck in Snizco Agency style.
+```
+
+The agent should:
+
+1. run or request the upstream research skill
+2. require a schema-valid `skill-deck-handoff.json`
+3. resolve `Snizco Agency style` to a registered style id
+4. reuse cached template and slide-library profiles when fingerprints are current
+5. run Deck Factory with a deterministic output directory
+6. perform render, screenshot QA, package-integrity QA, and repair
+7. return the final `deck.pptx`
+
+The agent must not re-extract a current registered template or slide library on every run.
+
+## Repo-Shipped Skill
+
+Add:
+
+```text
+openclaw/
+  skills/
+    deck-factory/
+      SKILL.md
+      examples/
+        chick-fil-a-5c-request.md
+        template-registration.md
+      tests/
+        static-skill-check.mjs
+```
+
+The skill must define:
+
+- when to use Deck Factory
+- non-goals, including not hand-editing OOXML or bypassing the CLI
+- required prerequisites
+- style/template resolution rules
+- template deck preparation requirements
+- slide-library registration and reuse rules
+- cross-skill handoff requirements
+- output-path convention
+- QA and repair gates
+- final response contract
+- fail-closed blockers
+
+## Portable Defaults
+
+The public path should not assume `ssh snizserver openclaw` or agent `jay`.
+
+Use this resolution order:
+
+1. CLI flags, such as `--openclaw-command` and `--planner-agent`
+2. environment variables, such as `DECK_FACTORY_OPENCLAW_COMMAND` and `DECK_FACTORY_OPENCLAW_AGENT`
+3. local `openclaw` on `PATH`
+4. fail with a setup message if OpenClaw is unavailable
+
+Brian-specific defaults can remain documented as local deployment notes, not as the public default.
+
+## Template And Library Onboarding
+
+A user-supplied style should be created with two explicit steps.
+
+Register the prepared template deck:
+
+```bash
+deck-factory templates register \
+  --id snizco-agency \
+  --name "Snizco Agency" \
+  --template-deck path/to/snizco-template.pptx
+```
+
+Register the slide library when available:
+
+```bash
+deck-factory libraries register \
+  --style snizco-agency \
+  --library-deck path/to/snizco-library.pptx
+```
+
+The template deck should be a normal `.pptx` with representative dummy slides, not a blank `.potx`. It should include `DF_LAYOUT` markers and stable Selection Pane names such as `df_title`, `df_body`, `df_subtitle`, and `df_footer`.
+
+The slide library should be a normal `.pptx` with reusable slides marked by `DF_LIBRARY: <slide-id>`. Parameterized slides should use `{{field}}` tokens and must fail closed when required fields are missing.
+
+## Style Resolution
+
+The skill should resolve style names through the local registry:
+
+- exact style id match, such as `snizco-agency`
+- display-name match, such as `Snizco Agency`
+- normalized display-name match, such as `snizco agency`
+
+If no style is registered, the skill should say:
+
+```text
+I do not have a registered Deck Factory style named "Snizco Agency" yet. Send me the prepared `.pptx` template deck once and I will register it for reuse.
+```
+
+If a registered style points to a missing source deck but has a current cached ready profile, the skill may continue only if Deck Factory can render safely from the available registered paths. If the source is needed for refresh and missing, the skill must stop and ask for the current template deck.
+
+## Output Path Convention
+
+For agent-initiated runs, the default output directory should be deterministic and safe:
+
+```text
+artifacts/<subject-slug>-<report-type-slug>-<style-id>/
+```
+
+For example:
+
+```text
+artifacts/chick-fil-a-5c-research-report-snizco-agency/deck.pptx
+```
+
+The final user-facing artifact is always:
+
+```text
+<out>/deck.pptx
+```
+
+Internal evidence remains in the same run directory:
+
+- `deck-spec.json`
+- `operations.jsonl`
+- `qa-report.json`
+- `screenshots/`
+- `openclaw-*/*`
+
+The skill should return evidence only when the user asks or when the run fails.
+
+## Cross-Skill Contract
+
+Upstream skills do not need to know PowerPoint. They must produce a schema-valid `skill-deck-handoff.json` with:
+
+- source skill and run id
+- report type
+- subject
+- audience and objective
+- preferred style id
+- sections and findings
+- evidence and citations
+- requested charts, tables, and library slides
+- asset references
+- sensitivity and open questions
+
+Deck Factory owns template selection, slide selection, rendering, QA, and repair after that handoff.
+
+## Acceptance Criteria
+
+The public OpenClaw integration is complete when:
+
+1. a clean clone can run `npm install`, `npm run build`, `npm test`, and `npm run cli -- doctor --json`
+2. the repo contains `openclaw/skills/deck-factory/SKILL.md`
+3. the skill passes a static package check
+4. the README explains how to install or reference the skill from OpenClaw
+5. a user can register a new `.pptx` template deck and optional slide library
+6. a second run reuses cached template and library profiles without re-extraction
+7. an unknown style fails with a clear template-registration request
+8. a sample `skill-deck-handoff.json` produces a final `deck.pptx`
+9. the output path is deterministic and documented
+10. the public default does not assume Brian's `snizserver` or `jay`
+11. missing OpenClaw, model credentials, rasterizer tools, templates, assets, or QA evidence fail closed
+12. final handoff returns `deck.pptx` as the primary artifact
+
+## Next Implementation Slice
+
+The next implementation slice should focus on public OpenClaw usability, not new rendering features.
+
+Build the repo-shipped skill, portable setup docs, static checks, and one clean-clone smoke path. Do not expand the deck spec or renderer surface unless the integration work exposes a blocking gap.

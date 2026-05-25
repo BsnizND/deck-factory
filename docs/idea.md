@@ -110,3 +110,21 @@ The first demo should be small and honest:
 If any step fails, the run should stop with the exact missing prerequisite.
 
 The first repo-provided templates should cover business review, strategy readout, and sales proposal use cases so users can understand how to prepare their own source decks.
+
+## Public OpenClaw Experience
+
+The desired public experience is not "clone a slide renderer and read the source." It is:
+
+```text
+clone repo -> install dependencies -> install Deck Factory OpenClaw skill -> register template once -> ask an OpenClaw agent for a deck -> receive deck.pptx
+```
+
+For example:
+
+```text
+"Do a 5C research report on Chick-fil-A in a deck in Snizco Agency style."
+```
+
+The agent should resolve `Snizco Agency style` to a registered style id, reuse the cached template profile and slide library, run the research skill, consume a schema-valid handoff, render and QA the deck, and return the final PowerPoint file.
+
+This requires a repo-shipped OpenClaw skill and portable setup docs. Until those exist, Deck Factory is a working local v0, not a drop-in OpenClaw package.

@@ -46,11 +46,24 @@
 - Keep screenshots, QA report, operation log, source spec, and repair attempts as internal build evidence.
 - Add an optional approval package only when the user asks for review evidence or when failure evidence is needed.
 
-## Phase 6: Agent Skill
+## Phase 6: Agent Skill And OpenClaw Portability
 
-- Wrap the workflow as a reusable agent skill.
-- Define input and output expectations for Codex, OpenClaw, Claude, Cursor, Gemini, and other agent runners.
-- Keep the skill fail-closed around missing files, renderers, credentials, or QA evidence.
+- Ship `openclaw/skills/deck-factory/SKILL.md`.
+- Add portable OpenClaw install and configuration instructions.
+- Default public docs to local `openclaw`, with `DECK_FACTORY_OPENCLAW_COMMAND` and CLI flags for overrides.
+- Define style-name resolution, template/library registration, and output-path conventions.
+- Include a cross-skill handoff walkthrough from `skill-deck-handoff.json` to `deck.pptx`.
+- Keep the skill fail-closed around missing files, renderers, credentials, stale registries, unknown styles, or QA evidence.
+- Add a static skill/package check and a clean-clone smoke path.
+
+## Phase 7: Public Integration Hardening
+
+- Prove a fresh clone can install, build, and run the sample handoff.
+- Prove an OpenClaw user can register their own `.pptx` template deck once and reuse it.
+- Prove a slide library with `about-us`, `methodology`, and one parameterized slide can be registered and selected by the planner.
+- Remove or demote Brian-specific assumptions from public docs.
+- Document local deployment overrides separately from public setup.
+- Publish the exact supported artifact contract: final `deck.pptx` plus optional internal evidence.
 
 ## Sample Templates
 

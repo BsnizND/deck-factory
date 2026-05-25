@@ -6,9 +6,9 @@ The core bet is simple: great decks should not be generated as disposable images
 
 ## Status
 
-Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw/Jay screenshot review, and a spec-first repair loop.
+Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw-backed screenshot review, spec-first repair, and PowerPoint package integrity checks.
 
-It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to `ssh snizserver openclaw` with worker agent `jay`.
+It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to the configured OpenClaw command and worker agent. The repo is buildable and runnable from source, but it is not yet a drop-in public OpenClaw integration until the repo-shipped OpenClaw skill and portable install docs are added.
 
 ## The Pipeline
 
@@ -80,6 +80,7 @@ The workflow should support:
 - [docs/idea.md](docs/idea.md): the fuller product concept.
 - [docs/architecture.md](docs/architecture.md): proposed system shape and module boundaries.
 - [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
+- [docs/openclaw-integration.md](docs/openclaw-integration.md): the plan for making Deck Factory portable for OpenClaw users.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
 
 ## Current CLI
@@ -102,6 +103,17 @@ npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil
 ```
 
 `run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The default OpenClaw target is `ssh snizserver openclaw` and the default worker agent is `jay`; override with `DECK_FACTORY_OPENCLAW_COMMAND`, `--openclaw-command`, or `--planner-agent` only when deploying somewhere else. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
+
+## Public OpenClaw Integration Gap
+
+The current repo is not yet packaged so an arbitrary OpenClaw user can clone it and immediately make their agent call Deck Factory naturally. The remaining portability work is tracked in [docs/openclaw-integration.md](docs/openclaw-integration.md). In short, the repo still needs:
+
+- a shipped `openclaw/skills/deck-factory/SKILL.md`
+- portable OpenClaw install and configuration notes
+- generic worker-agent examples that do not assume Brian's `snizserver` or `jay`
+- a documented output-path convention for agent runs
+- a full "bring your own template and slide library" walkthrough
+- a smoke test proving a clean clone can run from a skill handoff to `deck.pptx`
 
 ## License
 

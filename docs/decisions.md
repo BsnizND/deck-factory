@@ -31,6 +31,21 @@ The template should be a normal PowerPoint deck with representative dummy slides
 
 Deck Factory should also include sample templates so users can see what a good template contains.
 
+## Template And Library Reuse
+
+Decision: registered styles are the unit of reuse.
+
+A style id such as `snizco-agency` resolves to:
+
+- one prepared `.pptx` template deck
+- one cached template profile
+- zero or more registered slide libraries
+- style notes and layout mappings
+
+The planner should never re-extract a registered current template or slide library just because a user asks for another deck in the same style. Re-extraction is allowed only when the source fingerprint, extractor version, profile schema, or explicit refresh command requires it.
+
+Slide libraries are first-class parts of the style. The planner may mix generated slides and library slides in one deck, but the renderer must insert only registered slides by id and must fail closed when required fields are missing.
+
 Planned sample templates:
 
 - `business-review.pptx`: executive update, metrics, risks, next steps
@@ -155,6 +170,22 @@ Deck Factory should still keep internal build evidence by default:
 
 Those internal artifacts are for reproducibility, debugging, and agent repair. They should not clutter the user-facing handoff unless the user asks for an approval package or the run fails and evidence is needed to explain why.
 
+## Public OpenClaw Integration
+
+Decision: Deck Factory is not public-integration complete until it ships an OpenClaw skill and portable setup docs.
+
+The repo can be buildable and still not be ready for arbitrary OpenClaw users. Public integration requires:
+
+- `openclaw/skills/deck-factory/SKILL.md`
+- portable defaults that prefer local `openclaw` over Brian-specific hosts
+- install and smoke-test instructions
+- style-name resolution rules
+- deterministic output-path conventions
+- a cross-skill handoff walkthrough
+- fail-closed blocker language for unknown styles, stale/missing templates, missing slide libraries, missing OpenClaw credentials, and missing rasterizer tools
+
+Brian-specific defaults such as `ssh snizserver openclaw` and agent `jay` are valid local deployment overrides, not public defaults.
+
 ## V0 Definition Of Done
 
 V0 is real when Deck Factory can:
@@ -167,3 +198,5 @@ V0 is real when Deck Factory can:
 6. Run a screenshot evaluator loop.
 7. Repair at least one common failure by changing the deck spec and rerendering.
 8. Deliver `deck.pptx` as the primary artifact.
+
+Public OpenClaw integration is real when a clean clone can install the skill, register a prepared template deck once, and run from a schema-valid upstream handoff to `deck.pptx` without relying on Brian-specific paths, hosts, or agent ids.
