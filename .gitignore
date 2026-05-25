@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+*.log
+
+# Generated deck artifacts
+artifacts/
+output/
+screenshots/
+*.pptx
+*.pdf
+
+!samples/**/*.pptx
