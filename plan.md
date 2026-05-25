@@ -127,6 +127,90 @@ The extraction step should classify each template deck into one of three states:
 
 For `needs-prep`, Deck Factory should write `template-prep-report.md` explaining exactly what the user should fix in PowerPoint.
 
+### Template Registry And Style Packs
+
+Deck Factory must not re-extract the same template every time a user asks for a deck.
+
+Templates should be registered once, extracted once, and reused by stable style names. A user should be able to say "Snizco Agency style" and Jay should resolve that to a cached template profile, not start from raw PowerPoint extraction again.
+
+The template registry should store:
+
+- template id, such as `snizco-agency`
+- display name, such as `Snizco Agency`
+- source template deck path
+- content hash of the source `.pptx`
+- extractor version
+- profile schema version
+- extracted template profile path
+- template preparation status
+- supported deck/report archetypes
+- preferred slide layouts by semantic use
+- brand/style notes
+- last extracted timestamp
+
+Extraction should happen only when:
+
+- a template is registered for the first time
+- the source `.pptx` content hash changes
+- the extractor version changes
+- the template-profile schema version changes
+- the user explicitly runs `deck-factory templates refresh`
+
+If none of those are true, Deck Factory must reuse the cached profile.
+
+The registry should support both global and project-local scopes:
+
+- global registry: reusable personal/agency styles such as `snizco-agency`
+- project registry: client-specific templates stored with a project
+
+The plan for "Snizco Agency style" is:
+
+1. Register the Snizco Agency `.pptx` once.
+2. Extract and validate its template profile once.
+3. Save a style pack that maps semantic deck needs to Snizco layouts.
+4. Let Jay and other skills reference the style by name.
+5. Reuse the cached profile until the template or extraction code changes.
+
+### Skill-To-Deck Composition
+
+Deck Factory should be a deck renderer/orchestrator that can consume structured outputs from other OpenClaw skills.
+
+The user flow should support:
+
+```text
+"Jay, do a 5C Research Report on Chick-fil-A in a deck in Snizco Agency style."
+```
+
+That means:
+
+1. Jay identifies `5C Research Report` as the research/content skill.
+2. Jay identifies `Snizco Agency style` as the registered Deck Factory style/template.
+3. Jay runs the 5C research skill through OpenClaw.
+4. The 5C skill returns a structured deck handoff, not just prose.
+5. Deck Factory uses the cached Snizco Agency template profile.
+6. Deck Factory plans and renders the deck.
+7. Deck Factory runs screenshot QA and repair.
+8. Jay returns the final `deck.pptx`.
+
+Other skills should not need to know how to write PowerPoint. They should output a deck-ready handoff contract that Deck Factory can consume.
+
+The handoff contract should include:
+
+- report type, such as `5c-research-report`
+- subject, such as `Chick-fil-A`
+- audience
+- objective
+- recommended deck length
+- sections
+- findings
+- evidence/citations
+- tables/charts requested
+- asset references
+- sensitivity/privacy flags
+- preferred style id, such as `snizco-agency`
+
+Deck Factory then owns template selection, slide mapping, rendering, screenshot QA, and repair.
+
 ### Deck Spec
 
 The v0 deck spec should be semantic, not pixel-positioned.
@@ -221,6 +305,10 @@ deck-factory/
       renderer-adapter.ts
       pptx-automizer-adapter.ts
       operations-log.ts
+    registry/
+      template-registry.ts
+      style-pack.ts
+      fingerprint.ts
     qa/
       rasterize.ts
       deterministic-checks.ts
@@ -228,8 +316,13 @@ deck-factory/
       repair-plan.ts
     workflow/
       build-deck.ts
+      compose-from-skill.ts
       repair-loop.ts
       handoff.ts
+  registry/
+    templates.json
+    styles/
+      snizco-agency.json
   openclaw/
     agents/
       deck-factory-planner.json
@@ -264,6 +357,10 @@ deck-factory/
 The CLI should be small and composable:
 
 ```bash
+deck-factory templates register --id snizco-agency --name "Snizco Agency" --template-deck templates/snizco-agency.pptx
+deck-factory templates list
+deck-factory templates inspect snizco-agency
+deck-factory templates refresh snizco-agency
 deck-factory extract --template-deck samples/business-review/template.pptx --out artifacts/business-review/profile
 deck-factory build --spec samples/business-review/deck-spec.json --out artifacts/business-review/run
 deck-factory qa --deck artifacts/business-review/run/deck.pptx --out artifacts/business-review/run/qa
@@ -274,6 +371,18 @@ The first end-to-end command can wrap those stages:
 
 ```bash
 deck-factory run --template-deck template.pptx --brief brief.md --out artifacts/client-deck
+```
+
+The normal reusable-style path should avoid re-extraction:
+
+```bash
+deck-factory run --style snizco-agency --brief brief.md --out artifacts/chick-fil-a-5c
+```
+
+And the cross-skill path should accept a structured handoff:
+
+```bash
+deck-factory run --style snizco-agency --handoff artifacts/5c/chick-fil-a/deck-handoff.json --out artifacts/chick-fil-a-5c
 ```
 
 Every command should fail closed with a specific missing prerequisite or validation failure.
@@ -393,7 +502,74 @@ Repair worker output:
 
 The AI never gets to declare success without deterministic evidence that the deck rendered and screenshot QA ran.
 
+### Cross-Skill Orchestration In Jay
+
+Jay should be able to compose multiple skills without the user manually running each stage.
+
+For:
+
+```text
+"Jay, do a 5C Research Report on Chick-fil-A in a deck in Snizco Agency style."
+```
+
+Jay should plan:
+
+1. Use the 5C research skill to produce structured research.
+2. Require that skill to emit a `skill-deck-handoff.json`.
+3. Resolve `Snizco Agency style` through the Deck Factory template registry.
+4. Confirm the registered template profile is current by checking the cached fingerprint.
+5. Run Deck Factory from the handoff and cached style.
+6. Run screenshot QA and repair.
+7. Return only the final `deck.pptx` unless the user asks for evidence.
+
+Jay should not ask the user to re-upload or re-extract the Snizco Agency template if it is already registered and current.
+
+If the style name is unknown, Jay should say exactly that:
+
+```text
+I do not have a registered Deck Factory style named "Snizco Agency" yet. Send me the Snizco Agency template deck once and I will register it for reuse.
+```
+
+If the cached template fingerprint is stale, Jay should refresh the profile automatically if the source file is available. If the source file is missing, Jay should stop and ask for the current template deck.
+
 ## Data Contracts
+
+### Template Registry
+
+`templates.json` should include:
+
+- `version`
+- `templates`
+- template id
+- display name
+- source template deck path
+- source content hash
+- extractor version
+- profile schema version
+- cached profile path
+- preparation status
+- supported report/deck types
+- created/updated timestamps
+
+### Style Pack
+
+Each style pack should include:
+
+- `styleId`
+- `displayName`
+- `templateId`
+- `brandVoice`
+- `defaultAudience`
+- `supportedArchetypes`
+- `layoutMap`
+- `colorUsageNotes`
+- `typographyNotes`
+- `chartStyleNotes`
+- `imageStyleNotes`
+- `qaStrictness`
+- `fallbackPolicy`
+
+The style pack is where `Snizco Agency style` becomes a concrete rendering contract.
 
 ### Template Profile
 
@@ -422,6 +598,7 @@ The AI never gets to declare success without deterministic evidence that the dec
 - `version`
 - `deck`
 - `template`
+- `style`
 - `openclaw`
 - `assets`
 - `slides`
@@ -468,6 +645,30 @@ Supported v0 content block types:
 - `sessionPrefix`
 - `requiredModelRuntime`
 - `maxRepairAttempts`
+
+### Skill Deck Handoff
+
+`skill-deck-handoff.json` should include:
+
+- `version`
+- `sourceSkill`
+- `sourceRunId`
+- `reportType`
+- `subject`
+- `audience`
+- `objective`
+- `preferredStyleId`
+- `sections`
+- `findings`
+- `evidence`
+- `citations`
+- `requestedCharts`
+- `requestedTables`
+- `assetRefs`
+- `sensitivity`
+- `openQuestions`
+
+This is the bridge between a research skill and Deck Factory. The handoff should be strict JSON, schema-validated, and treated as untrusted input until validated.
 
 ### Operation Log
 
@@ -539,6 +740,7 @@ Deliverables:
 - Schema validation helper.
 - OpenClaw prerequisite probe.
 - Run directory structure for deterministic artifacts and OpenClaw worker artifacts.
+- Registry storage conventions for global and project-local templates.
 
 Acceptance checks:
 
@@ -547,21 +749,28 @@ Acceptance checks:
 - `deck-factory --help` prints available commands.
 - `deck-factory doctor` reports OpenClaw, renderer, rasterizer, and model-worker readiness without mutating state.
 
-### Phase 1: Schema And Fixtures
+### Phase 1: Registry, Schema, And Fixtures
 
 Deliverables:
 
 - `deck-spec.schema.json`.
 - `template-profile.schema.json`.
 - `qa-report.schema.json`.
+- `template-registry.schema.json`.
+- `style-pack.schema.json`.
+- `skill-deck-handoff.schema.json`.
 - TypeScript types generated or maintained from schemas.
 - One hand-authored sample `deck-spec.json`.
+- One hand-authored sample `skill-deck-handoff.json`.
 - Placeholder sample template directories.
+- `deck-factory templates` command group.
 
 Acceptance checks:
 
 - Valid sample specs pass schema validation.
+- Valid sample handoffs pass schema validation.
 - Invalid sample specs fail with useful errors.
+- Invalid style/template registry entries fail with useful errors.
 - Schema tests cover required fields and unknown content block types.
 
 ### Phase 2: Sample Templates
@@ -597,6 +806,8 @@ Deliverables:
 
 - `deck-factory extract`.
 - Explicit `--template-deck` input role.
+- `deck-factory templates register`.
+- Template fingerprinting based on source `.pptx` content hash plus extractor/profile schema versions.
 - Deterministic extraction for slide size, masters, layouts, theme colors, theme fonts, placeholder metadata, shape bounds, text style runs, charts, tables, and image placeholders.
 - `template-profile.json` output.
 - Extraction warnings for unsupported or ambiguous template features.
@@ -610,6 +821,25 @@ Acceptance checks:
 - Missing or unreadable templates fail with exact error messages.
 - Ambiguous but valid templates produce `needs-prep`, not fake readiness.
 - OpenClaw classification output is schema-valid before it is merged into the profile.
+- Re-registering an unchanged template reuses the cached profile instead of extracting again.
+- Changing the source `.pptx` hash invalidates the cached profile and refreshes extraction.
+
+### Phase 3b: Style Pack And Template Cache
+
+Deliverables:
+
+- `deck-factory templates list`.
+- `deck-factory templates inspect`.
+- `deck-factory templates refresh`.
+- Style pack resolution from natural/user-facing style names to template ids.
+- Built-in or sample `snizco-agency` style pack placeholder.
+
+Acceptance checks:
+
+- `--style snizco-agency` resolves to the registered template profile.
+- Unknown styles fail with a clear "style not registered" error.
+- Cached template profiles are reused across multiple runs.
+- Forced refresh re-extracts and updates the cached fingerprint.
 
 ### Phase 4: Renderer Adapter
 
@@ -634,6 +864,7 @@ Deliverables:
 
 - `deck-factory plan` or internal planning stage backed by `deck-factory-planner`.
 - Prompt/schema for turning a brief and template profile into `deck-spec.json`.
+- Prompt/schema for turning `skill-deck-handoff.json` into `deck-spec.json`.
 - Missing-input detection for assets, data, citations, or brand constraints.
 - OpenClaw worker artifact capture.
 
@@ -643,6 +874,23 @@ Acceptance checks:
 - Planner cannot write files directly; only the CLI writes validated outputs.
 - Planner names assumptions and missing inputs.
 - Planner output fails closed when it references unknown layouts or missing assets.
+- Planner preserves citations and evidence from the source skill handoff.
+
+### Phase 4c: Cross-Skill Deck Handoff
+
+Deliverables:
+
+- `compose-from-skill` workflow.
+- `skill-deck-handoff.json` schema.
+- Example handoff for `5c-research-report` on a sample company.
+- Jay/OpenClaw orchestration instructions for running a research skill then Deck Factory.
+
+Acceptance checks:
+
+- A sample 5C handoff can produce a deck spec.
+- Handoff input is validated before planning.
+- Missing citations, source skill output, or requested assets fail closed.
+- Deck Factory never needs the upstream skill to know PowerPoint internals.
 
 ### Phase 5: Rasterization And Deterministic QA
 
@@ -701,12 +949,16 @@ Deliverables:
 - `deck-factory run`.
 - Orchestrated extract, build, QA, screenshot evaluation, repair, and handoff.
 - OpenClaw planner/reviewer/repair worker calls inside the orchestration.
+- `--style` support for registered styles.
+- `--handoff` support for structured output from upstream skills.
 - Final `deck.pptx` copied to the requested output location.
 - Internal evidence retained in the run folder.
 
 Acceptance checks:
 
 - A sample run produces a final `deck.pptx`.
+- A second run with the same registered style reuses the cached template profile.
+- A sample 5C handoff renders with `--style snizco-agency`.
 - Internal screenshots and QA artifacts exist.
 - User-facing output is not cluttered unless optional evidence output is requested.
 - The command fails closed on missing template, invalid spec, missing assets, rasterization failure, missing OpenClaw worker config, or missing model credentials.
@@ -735,17 +987,20 @@ V0 is complete when Deck Factory can:
 
 1. Accept a user-supplied `.pptx` template with representative dummy slides.
 2. Distinguish template decks, reference decks, `.potx` templates, and generated output decks.
-3. Produce a preparation report for templates that are not ready.
-4. Extract a minimal but useful template profile.
-5. Use OpenClaw worker lanes to plan or revise a semantic deck spec.
-6. Validate a semantic deck spec.
-7. Render a 3 to 5 slide editable deck.
-8. Rasterize every output slide.
-9. Run deterministic QA.
-10. Run OpenClaw-backed screenshot evaluator review.
-11. Repair at least one common failure by changing the deck spec and rerendering.
-12. Deliver `deck.pptx` as the primary user artifact.
-13. Preserve internal evidence for debugging and reproducibility.
+3. Register a template under a reusable style id.
+4. Reuse cached template profiles instead of re-extracting unchanged templates.
+5. Produce a preparation report for templates that are not ready.
+6. Extract a minimal but useful template profile.
+7. Accept a structured handoff from another skill, such as a 5C research skill.
+8. Use OpenClaw worker lanes to plan or revise a semantic deck spec.
+9. Validate a semantic deck spec.
+10. Render a 3 to 5 slide editable deck.
+11. Rasterize every output slide.
+12. Run deterministic QA.
+13. Run OpenClaw-backed screenshot evaluator review.
+14. Repair at least one common failure by changing the deck spec and rerendering.
+15. Deliver `deck.pptx` as the primary user artifact.
+16. Preserve internal evidence for debugging and reproducibility.
 
 ## Fail-Closed Rules
 
@@ -754,7 +1009,11 @@ Deck Factory must stop with a concrete error when:
 - the template is missing, unreadable, or not a supported `.pptx`
 - a `.potx` is supplied before `.potx` normalization is implemented
 - a `.pptx` is supplied without a declared file role
+- a requested style is not registered
+- a registered style points to a missing source template and no cached ready profile exists
+- a cached profile is stale and cannot be refreshed
 - the template deck is valid PowerPoint but not prepared enough for safe ingestion
+- a skill deck handoff fails schema validation
 - the deck spec fails schema validation
 - referenced assets are missing
 - required fonts cannot be resolved and the run is configured to require them
@@ -772,17 +1031,21 @@ Do not emit placeholder decks, canned screenshots, fake QA reports, mock citatio
 
 1. Scaffold Node/TypeScript and CLI.
 2. Add schemas and validation tests.
-3. Add `deck-factory doctor` with OpenClaw readiness checks.
-4. Define PowerPoint file roles and CLI flags.
-5. Write the template-preparation guide.
-6. Create sample folder structure and initial sample specs.
-7. Build the simplest Deck Factory-ready `.pptx` sample template.
-8. Implement template extraction and `template-prep-report.md`.
-9. Implement OpenClaw JSON-worker wrapper.
-10. Implement OpenClaw planner worker for `deck-spec.json`.
-11. Implement the `pptx-automizer` adapter.
-12. Render the first sample `deck.pptx`.
-13. Add rasterization and deterministic QA.
-14. Add OpenClaw screenshot evaluator review.
-15. Add OpenClaw-backed spec-first repair loop.
-16. Wrap the whole path in `deck-factory run`.
+3. Add registry/style/handoff schemas.
+4. Add `deck-factory doctor` with OpenClaw readiness checks.
+5. Define PowerPoint file roles and CLI flags.
+6. Implement `deck-factory templates register/list/inspect/refresh`.
+7. Write the template-preparation guide.
+8. Create sample folder structure and initial sample specs.
+9. Build the simplest Deck Factory-ready `.pptx` sample template.
+10. Register a placeholder `snizco-agency` style.
+11. Implement template extraction, fingerprinting, cache reuse, and `template-prep-report.md`.
+12. Implement OpenClaw JSON-worker wrapper.
+13. Implement OpenClaw planner worker for `deck-spec.json`.
+14. Implement the skill handoff contract with a sample 5C handoff.
+15. Implement the `pptx-automizer` adapter.
+16. Render the first sample `deck.pptx`.
+17. Add rasterization and deterministic QA.
+18. Add OpenClaw screenshot evaluator review.
+19. Add OpenClaw-backed spec-first repair loop.
+20. Wrap the whole path in `deck-factory run --style ... --handoff ...`.
