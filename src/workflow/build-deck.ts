@@ -24,7 +24,14 @@ interface DeckSpecSlide {
   layout: string;
   librarySlideId?: string;
   title: string;
-  content: Array<{ type?: string; text?: string; items?: string[]; fields?: Record<string, string> }>;
+  content: Array<{
+    type?: string;
+    heading?: string;
+    text?: string;
+    items?: Array<string | { label?: string; text?: string }>;
+    columns?: Array<{ heading?: string; items?: string[]; text?: string }>;
+    fields?: Record<string, string>;
+  }>;
 }
 
 export interface BuildDeckResult {
@@ -107,12 +114,21 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
     if (!layout?.sourceSlide) {
       fail(`Unknown or unrenderable layout for slide ${slide.id}: ${slide.layout}`);
     }
-    pres = pres.addSlide("template", layout.sourceSlide, (automizerSlide: any) => {
+    pres = pres.addSlide("template", layout.sourceSlide, async (automizerSlide: any) => {
+      const generatedText = generatedTextForSlide(slide);
+      const replacements = [
+        { replace: "{{title}}", by: { text: slide.title } },
+        { replace: "{{subtitle}}", by: { text: generatedText.body } },
+        { replace: "{{body}}", by: { text: generatedText.body } },
+        { replace: "{{left_column}}", by: { text: generatedText.leftColumn } },
+        { replace: "{{right_column}}", by: { text: generatedText.rightColumn } }
+      ];
+      const elements = await automizerSlide.getAllTextElementIds();
+      for (const element of elements) {
+        automizerSlide.modifyElement(element, [modify.replaceText(replacements)]);
+      }
       automizerSlide.modifyElement("df_title", [modify.setText(slide.title)]);
-      const body = slide.content
-        .map((block) => block.text ?? block.items?.join("\n") ?? "")
-        .filter(Boolean)
-        .join("\n\n");
+      const body = generatedText.body;
       if (body) {
         const bodyElement = layout.id === "title" ? "df_subtitle" : "df_body";
         automizerSlide.modifyElement(bodyElement, [modify.setText(body)]);
@@ -125,6 +141,66 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
   await normalizePowerPointPackage(deckPath);
   await writeFile(operationsPath, operations.map((operation) => JSON.stringify(operation)).join("\n") + "\n", "utf8");
   return { deckPath, operationsPath, slideCount: spec.slides.length };
+}
+
+function generatedTextForSlide(slide: DeckSpecSlide): { body: string; leftColumn: string; rightColumn: string } {
+  const bodyParts: string[] = [];
+  let leftColumn = "";
+  let rightColumn = "";
+  const columnBlocks = (slide.content ?? []).filter((block) => block.type === "column");
+  if (columnBlocks.length > 0) {
+    const formattedColumns = columnBlocks.map(formatColumn).filter(Boolean);
+    leftColumn = formattedColumns[0] ?? "";
+    rightColumn = formattedColumns[1] ?? "";
+    bodyParts.push(formattedColumns.join("\n\n"));
+    return {
+      body: bodyParts.filter(Boolean).join("\n\n"),
+      leftColumn,
+      rightColumn
+    };
+  }
+  for (const block of slide.content ?? []) {
+    if (block.columns && block.columns.length > 0) {
+      const formattedColumns = block.columns.map(formatColumn).filter(Boolean);
+      if (!leftColumn && formattedColumns[0]) {
+        leftColumn = formattedColumns[0];
+      }
+      if (!rightColumn && formattedColumns[1]) {
+        rightColumn = formattedColumns[1];
+      }
+      bodyParts.push(formattedColumns.join("\n\n"));
+      continue;
+    }
+    const text = block.text ?? formatItems(block.items) ?? "";
+    if (text.trim()) {
+      bodyParts.push(text);
+    }
+  }
+  return {
+    body: bodyParts.filter(Boolean).join("\n\n"),
+    leftColumn,
+    rightColumn
+  };
+}
+
+function formatColumn(column: { heading?: string; items?: Array<string | { label?: string; text?: string }>; text?: string }): string {
+  const parts = [column.heading, column.text, formatItems(column.items)].filter((part): part is string => Boolean(part?.trim()));
+  return parts.join("\n");
+}
+
+function formatItems(items?: Array<string | { label?: string; text?: string }>): string | undefined {
+  if (!items) {
+    return undefined;
+  }
+  return items
+    .map((item) => {
+      if (typeof item === "string") {
+        return item;
+      }
+      return [item.label, item.text].filter(Boolean).join(": ");
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function fieldValuesForSlide(slide: DeckSpecSlide): Record<string, string> {
