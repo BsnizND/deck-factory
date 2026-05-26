@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { describeComputerUseCapability, resolveComputerUseMode } from "../src/capabilities/computer-use.js";
 import { countPptxSlides } from "../src/qa/qa-deck.js";
 import { resolveStylePack } from "../src/registry/style-pack.js";
 import { readJsonFile } from "../src/util/fs.js";
@@ -26,5 +27,16 @@ describe("schema fixtures", () => {
   it("resolves styles by display name for agent requests", async () => {
     await expect(resolveStylePack("Snizco Agency")).resolves.toMatchObject({ styleId: "snizco-agency" });
     await expect(resolveStylePack("snizco agency")).resolves.toMatchObject({ styleId: "snizco-agency" });
+  });
+
+  it("defaults Computer Use to an explicit off mode", () => {
+    expect(resolveComputerUseMode("off")).toBe("off");
+    expect(resolveComputerUseMode("on")).toBe("optional");
+    expect(resolveComputerUseMode("required")).toBe("required");
+    expect(describeComputerUseCapability("off")).toMatchObject({
+      enabled: false,
+      required: false,
+      usedByDeckFactory: false
+    });
   });
 });

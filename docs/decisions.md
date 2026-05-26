@@ -170,6 +170,20 @@ Deck Factory should still keep internal build evidence by default:
 
 Those internal artifacts are for reproducibility, debugging, and agent repair. They should not clutter the user-facing handoff unless the user asks for an approval package or the run fails and evidence is needed to explain why.
 
+## Computer Use Boundary
+
+Decision: Deck Factory must not require Computer Use for its core render and QA path.
+
+Computer Use is a deployment capability for live desktop inspection, not the deck engine. The CLI must be able to run with `--computer-use off`, and that must be the default until a local OpenClaw/Codex Computer Use path is proven healthy.
+
+Modes:
+
+- `off`: no `@Computer`, PowerPoint UI automation, Telegram UI inspection, or desktop control is allowed or required.
+- `optional`: the deck pipeline still succeeds or fails without desktop control; an orchestrator may run a separate post-build desktop check.
+- `required`: an external desktop verification gate is required by the caller, but the Deck Factory CLI only records that requirement and does not pretend to perform it.
+
+The run writes `capabilities.json` so Jay and other agents can report whether a deck was built with Computer Use disabled, optional, or externally required.
+
 ## Public OpenClaw Integration
 
 Decision: Deck Factory is not public-integration complete until it ships an OpenClaw skill and portable setup docs.
@@ -180,6 +194,7 @@ The repo can be buildable and still not be ready for arbitrary OpenClaw users. P
 - portable defaults that prefer local `openclaw` over Brian-specific hosts
 - install and smoke-test instructions
 - style-name resolution rules
+- explicit Computer Use mode guidance
 - deterministic output-path conventions
 - a cross-skill handoff walkthrough
 - fail-closed blocker language for unknown styles, stale/missing templates, missing slide libraries, missing OpenClaw credentials, and missing rasterizer tools

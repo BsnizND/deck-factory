@@ -11,6 +11,7 @@ Deck Factory is a working local CLI and OpenClaw-backed workflow from source:
 - `run --handoff` can call OpenClaw JSON workers to draft a `deck-spec.json`
 - the renderer produces editable `deck.pptx`
 - QA rasterizes slides, validates package integrity, and can ask OpenClaw for screenshot review and repair
+- Computer Use is configurable and is off by default for deck generation
 
 The repo now ships the agent-facing package under `openclaw/skills/deck-factory/`. The skill tells an OpenClaw agent how to discover styles, register templates, consume upstream skill handoffs, choose output paths, run QA, and return the final deck.
 
@@ -29,7 +30,7 @@ The agent should:
 3. resolve `Snizco Agency style` to a registered style id
 4. reuse cached template and slide-library profiles when fingerprints are current
 5. run Deck Factory with a deterministic output directory
-6. perform render, screenshot QA, package-integrity QA, and repair
+6. perform render, screenshot QA, package-integrity QA, and repair without requiring desktop Computer Use
 7. return the final `deck.pptx`
 
 The agent must not re-extract a current registered template or slide library on every run.
@@ -82,6 +83,23 @@ Use this resolution order:
 4. fail with a setup message if OpenClaw is unavailable
 
 Brian-specific defaults can remain documented as local deployment notes, not as the public default.
+
+## Computer Use Mode
+
+Deck Factory must work with Computer Use disabled. The core run path is:
+
+```bash
+DECK_FACTORY_COMPUTER_USE=off
+deck-factory run --style <style-id> --handoff <handoff.json> --computer-use off
+```
+
+Supported modes:
+
+- `off`: default. Do not call or require `@Computer`, PowerPoint UI automation, Telegram UI inspection, or macOS desktop control.
+- `optional`: deck generation and QA still succeed or fail without desktop control; an orchestrating OpenClaw agent may run a separate post-build Computer Use check only if that path is proven ready.
+- `required`: caller requires an external Computer Use verification gate after the deck is built. The Deck Factory CLI records the requirement in `capabilities.json` but does not perform desktop UI control itself.
+
+The skill should pass `--computer-use off` unless the user explicitly asks for desktop inspection or the local deployment has a proven Computer Use verification path. If Computer Use is off, `@Computer` failure must not block deck creation.
 
 Install the skill from a clean clone:
 
@@ -161,6 +179,7 @@ The final user-facing artifact is always:
 Internal evidence remains in the same run directory:
 
 - `deck-spec.json`
+- `capabilities.json`
 - `operations.jsonl`
 - `qa-report.json`
 - `screenshots/`
@@ -199,8 +218,9 @@ The public OpenClaw integration is complete when:
 8. a sample `skill-deck-handoff.json` produces a final `deck.pptx`
 9. the output path is deterministic and documented
 10. the public default does not assume Brian's `snizserver` or `jay`
-11. missing OpenClaw, model credentials, rasterizer tools, templates, assets, or QA evidence fail closed
-12. final handoff returns `deck.pptx` as the primary artifact
+11. the default run path works with `--computer-use off`
+12. missing OpenClaw, model credentials, rasterizer tools, templates, assets, or QA evidence fail closed
+13. final handoff returns `deck.pptx` as the primary artifact
 
 ## Smoke Tests
 

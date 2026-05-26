@@ -17,7 +17,8 @@ Expected flow:
 ```bash
 npm run cli -- run \
   --style "Snizco Agency" \
-  --handoff samples/5c-research/chick-fil-a-handoff.json
+  --handoff samples/5c-research/chick-fil-a-handoff.json \
+  --computer-use off
 ```
 
 Default output:

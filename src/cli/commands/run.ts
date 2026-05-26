@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { resolveComputerUseMode } from "../../capabilities/computer-use.js";
 import { fail } from "../../errors.js";
 import { DEFAULT_OPENCLAW_AGENT, DEFAULT_OPENCLAW_COMMAND } from "../../openclaw/command.js";
 import { resolveStylePack } from "../../registry/style-pack.js";
@@ -19,6 +20,10 @@ export function registerRunCommand(program: Command): void {
       "--openclaw-command <command>",
       `Command used to invoke OpenClaw. Defaults to DECK_FACTORY_OPENCLAW_COMMAND or '${DEFAULT_OPENCLAW_COMMAND}'.`
     )
+    .option(
+      "--computer-use <mode>",
+      "Computer Use integration mode for this run: off, optional, or required. Defaults to DECK_FACTORY_COMPUTER_USE or off."
+    )
     .option("--max-repair-attempts <number>", "Override deck-spec openclaw.maxRepairAttempts.")
     .action(
       async (options: {
@@ -29,9 +34,11 @@ export function registerRunCommand(program: Command): void {
         referenceDeck?: string;
         plannerAgent?: string;
         openclawCommand?: string;
+        computerUse?: string;
         maxRepairAttempts?: string;
       }) => {
         const maxRepairAttempts = parseOptionalNonNegativeInteger(options.maxRepairAttempts);
+        const computerUseMode = resolveComputerUseMode(options.computerUse);
         const style = await resolveStylePack(options.style);
         const outDir = await resolveRunOutputDirectory({
           outDir: options.out,
@@ -47,7 +54,8 @@ export function registerRunCommand(program: Command): void {
           referenceDeckPath: options.referenceDeck,
           plannerAgent: options.plannerAgent,
           openclawCommand: options.openclawCommand,
-          maxRepairAttempts
+          maxRepairAttempts,
+          computerUseMode
         });
         console.log(JSON.stringify(result, null, 2));
       }

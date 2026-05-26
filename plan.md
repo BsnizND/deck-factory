@@ -6,6 +6,8 @@ Deck Factory is an agentic deck-production workflow. It accepts a real PowerPoin
 
 The product goal is not to invent a new PowerPoint engine. The goal is to orchestrate existing rendering tools, deterministic validation, and model judgment into a reliable workflow for agency/client deck production.
 
+Computer Use is optional deployment verification, not a core requirement. The default deck path must work with `DECK_FACTORY_COMPUTER_USE=off` / `--computer-use off`; desktop UI control can be added only as an external post-build verification gate after the local OpenClaw/Codex path is proven.
+
 For the ready-to-execute remaining-work sequence, use [docs/execution-plan.md](docs/execution-plan.md). That file turns this product plan into ordered implementation work packages and acceptance gates.
 
 ## Product Contract
@@ -20,6 +22,7 @@ template.pptx
   -> deterministic QA
   -> screenshot evaluator loop
   -> repaired deck.pptx
+  -> capabilities.json
   -> user handoff
 ```
 

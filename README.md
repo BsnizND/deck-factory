@@ -6,7 +6,7 @@ The core bet is simple: great decks should not be generated as disposable images
 
 ## Status
 
-Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw-backed screenshot review, spec-first repair, PowerPoint package integrity checks, and a repo-shipped OpenClaw skill package.
+Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw-backed screenshot review, spec-first repair, PowerPoint package integrity checks, a repo-shipped OpenClaw skill package, and an explicit Computer Use mode switch.
 
 It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to the configured OpenClaw command and worker agent. Public defaults prefer local `openclaw`; remote commands and personal worker agents are deployment overrides.
 
@@ -103,16 +103,20 @@ npm run smoke:public
 The end-to-end entrypoint is:
 
 ```bash
-npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c
+npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c --computer-use off
 ```
 
 `run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The public default OpenClaw command is local `openclaw`, and the public default planner agent is `deck-factory-planner`. Override with `DECK_FACTORY_OPENCLAW_COMMAND`, `DECK_FACTORY_OPENCLAW_AGENT`, `--openclaw-command`, or `--planner-agent` for local deployments. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
+
+Computer Use is intentionally separate from the core deck pipeline. Set `DECK_FACTORY_COMPUTER_USE=off` or pass `--computer-use off` when the runtime should not rely on desktop UI control. Use `optional` only when an orchestrating agent may run a separate post-build desktop check. Use `required` only when that external verification path is already proven; the Deck Factory CLI records the requirement but does not drive `@Computer` itself.
 
 If `--out` is omitted for a handoff run, Deck Factory writes to:
 
 ```text
 artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx
 ```
+
+Each run also writes `capabilities.json`, which records whether Computer Use was disabled, optional, or externally required for that run.
 
 ## OpenClaw Skill
 

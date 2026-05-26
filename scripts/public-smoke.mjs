@@ -93,6 +93,8 @@ if (withOpenClaw) {
     "Snizco Agency",
     "--handoff",
     "samples/5c-research/chick-fil-a-handoff.json",
+    "--computer-use",
+    "off",
     "--max-repair-attempts",
     "0"
   ]);

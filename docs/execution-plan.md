@@ -18,6 +18,7 @@ Deck Factory currently has:
 - OpenClaw JSON worker calls for planning, screenshot review, and spec-first repair
 - a repo-shipped OpenClaw skill package under `openclaw/skills/deck-factory`
 - portable OpenClaw command and worker-agent defaults with env/CLI overrides
+- explicit Computer Use mode support with `off` as the default
 - deterministic handoff output directories when `--out` is omitted
 - public smoke scripts
 - a sample 5C handoff path
@@ -36,7 +37,7 @@ Deck Factory is done when a user can:
 6. optionally register a slide library once
 7. ask an OpenClaw agent for a deck in that registered style
 8. have the agent consume or produce a schema-valid `skill-deck-handoff.json`
-9. render, QA, repair, and verify the deck
+9. render, QA, repair, and verify the deck without requiring Computer Use
 10. receive `<out>/deck.pptx`
 
 The repo must not require Brian-specific paths, `snizserver`, or a `jay` agent for the public path. Those can exist as local deployment overrides only.
@@ -60,6 +61,7 @@ The skill must explain:
 - style-name resolution
 - handoff contract
 - output-path convention
+- Computer Use mode contract
 - required commands
 - QA gates
 - failure/blocker handling
@@ -72,6 +74,7 @@ Acceptance:
 - static check rejects Brian-specific public defaults
 - examples use portable paths or explicitly marked local overrides
 - the skill tells agents to call the CLI rather than hand-editing PowerPoint/OOXML
+- the skill tells agents to use `--computer-use off` unless desktop verification is explicitly requested and proven available
 
 ## Work Package 2: Portable Configuration
 
@@ -83,11 +86,13 @@ Delivered:
 - env var support for worker agent defaults, including `DECK_FACTORY_OPENCLAW_AGENT`
 - docs for `DECK_FACTORY_OPENCLAW_COMMAND`, `--openclaw-command`, `--planner-agent`, and related overrides
 - local deployment note for Brian-specific `ssh snizserver openclaw`
+- Computer Use mode support through `DECK_FACTORY_COMPUTER_USE` and `--computer-use`
 
 Acceptance:
 
 - public docs do not present `ssh snizserver openclaw` or `jay` as required defaults
 - `doctor --json` reports OpenClaw readiness without mutating state
+- `doctor --json --computer-use off` reports that desktop UI control is disabled rather than required
 - missing OpenClaw fails with an exact prerequisite message
 - missing worker agent/auth fails with exact OpenClaw commands or checks
 
@@ -200,6 +205,7 @@ Acceptance:
 - no untracked required files
 - `npm run build`, `npm run check`, `npm test`, static skill check, and smoke path pass
 - repo is committed, pushed, merged to `main`, and clean
+- Jay's Deck Factory runtime skill defaults to non-Computer-Use deck creation unless Brian explicitly asks for `@Computer`
 
 ## Execution Order
 
@@ -208,11 +214,12 @@ Acceptance:
 3. Add onboarding docs for templates, styles, and slide libraries.
 4. Add deterministic output-path convention.
 5. Add static skill checks.
-6. Add clean-clone smoke path.
-7. Run and fix the smoke until it produces `deck.pptx`.
-8. Harden renderer/QA only where the integration smoke exposes real gaps.
-9. Update README and docs.
-10. Commit, push, merge to `main`, and leave the repo clean.
+6. Add the Computer Use mode switch and keep `off` as the default.
+7. Add clean-clone smoke path.
+8. Run and fix the smoke until it produces `deck.pptx`.
+9. Harden renderer/QA only where the integration smoke exposes real gaps.
+10. Update README and docs.
+11. Commit, push, merge to `main`, and leave the repo clean.
 
 ## Stop Rules
 

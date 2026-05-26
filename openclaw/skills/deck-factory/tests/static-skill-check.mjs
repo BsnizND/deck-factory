@@ -14,10 +14,12 @@ const requiredPhrases = [
   "## Style Resolution",
   "## First-Time Registration",
   "## Running A Deck",
+  "## Computer Use Mode",
   "## QA Gates",
   "## Blockers",
   "## Final Response Contract",
   "npm run cli -- run",
+  "--computer-use off",
   "artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx",
   "Do not re-extract a registered current template or slide library on every run"
 ];

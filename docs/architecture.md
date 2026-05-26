@@ -12,6 +12,7 @@ deck-factory
   renderer-adapter
   visual-qa
   repair-loop
+  capability-gates
   openclaw-skill
   approval-bundler
 ```
@@ -115,6 +116,25 @@ Responsibilities:
 - check text overflow, clipped shapes, overlaps, out-of-bounds elements, low contrast, missing images, unsupported fonts, and slide count mismatches
 - generate human-readable montages for fast review
 
+## Capability Gates
+
+Input:
+
+- run options
+- environment variables
+- deployment-specific agent readiness
+
+Output:
+
+- `capabilities.json`
+
+Responsibilities:
+
+- record whether Computer Use is `off`, `optional`, or externally `required`
+- keep deck rendering and QA independent from desktop UI control when Computer Use is off
+- prevent agents from treating `@Computer` readiness as implied by a successful deck render
+- make optional or required desktop verification visible in the run artifacts instead of hidden in prompt text
+
 ## Repair Loop
 
 Input:
@@ -142,6 +162,7 @@ Input:
 - user request or upstream `skill-deck-handoff.json`
 - registered style id or user-facing style name
 - optional output directory override
+- Computer Use mode
 
 Output:
 
@@ -153,6 +174,7 @@ Responsibilities:
 - resolve style names through the local registry
 - reuse cached template and slide-library profiles when fingerprints are current
 - choose deterministic output paths for agent-initiated runs
+- default to `--computer-use off` unless desktop verification is explicitly requested and proven available
 - stop with exact setup guidance when OpenClaw, templates, slide libraries, rasterizers, or credentials are missing
 - keep `deck.pptx` as the primary user-facing artifact
 

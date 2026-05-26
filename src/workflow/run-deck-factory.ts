@@ -2,6 +2,13 @@ import { execFile } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import {
+  computerUsePromptInstruction,
+  describeComputerUseCapability,
+  resolveComputerUseMode,
+  type ComputerUseCapability,
+  type ComputerUseMode
+} from "../capabilities/computer-use.js";
 import { buildDeck } from "./build-deck.js";
 import { runOpenClawJsonWorker } from "../ai/openclaw-json-worker.js";
 import { fail } from "../errors.js";
@@ -35,12 +42,18 @@ export interface RunDeckFactoryResult {
   deckPath: string;
   operationsPath: string;
   qaReportPath: string;
+  capabilitiesPath: string;
 }
 
 interface RunPowerPointManifest {
   version: string;
   inputs: Array<Pick<PowerPointFileRoleRecord, "role" | "portablePath" | "extension" | "status">>;
   output: Pick<PowerPointFileRoleRecord, "role" | "portablePath" | "extension" | "status">;
+}
+
+interface RunCapabilitiesManifest {
+  version: "deck-factory.capabilities.v1";
+  computerUse: ComputerUseCapability;
 }
 
 export async function runDeckFactory(options: {
@@ -52,6 +65,7 @@ export async function runDeckFactory(options: {
   plannerAgent?: string;
   maxRepairAttempts?: number;
   openclawCommand?: string;
+  computerUseMode?: string;
 }): Promise<RunDeckFactoryResult> {
   if (!options.handoffPath && !options.specPath) {
     fail("Provide either --handoff for OpenClaw planning or --spec for an already approved deck spec.");
@@ -61,6 +75,8 @@ export async function runDeckFactory(options: {
   }
 
   const runDir = resolveFromCwd(options.outDir);
+  const computerUseMode = resolveComputerUseMode(options.computerUseMode);
+  const capabilitiesPath = await writeCapabilitiesManifest(runDir, computerUseMode);
   const referenceDeck = options.referenceDeckPath
     ? await assertPowerPointFileRole(options.referenceDeckPath, "reference-deck")
     : null;
@@ -77,7 +93,8 @@ export async function runDeckFactory(options: {
         runDir,
         referenceDeck,
         plannerAgent: options.plannerAgent,
-        openclawCommand: options.openclawCommand
+        openclawCommand: options.openclawCommand,
+        computerUseMode
       });
 
   let currentSpecPath = specPath;
@@ -89,7 +106,8 @@ export async function runDeckFactory(options: {
       qaReportPath: qa.reportPath,
       screenshotsDir: qa.screenshotsDir,
       runDir,
-      openclawCommand: options.openclawCommand
+      openclawCommand: options.openclawCommand,
+      computerUseMode
     });
   }
   const initialSpec = await readJsonFile<DeckSpec>(currentSpecPath);
@@ -104,6 +122,7 @@ export async function runDeckFactory(options: {
       qaReportPath: qa.reportPath,
       runDir,
       openclawCommand: options.openclawCommand,
+      computerUseMode,
       attempt
     });
     build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
@@ -114,7 +133,8 @@ export async function runDeckFactory(options: {
         qaReportPath: qa.reportPath,
         screenshotsDir: qa.screenshotsDir,
         runDir,
-        openclawCommand: options.openclawCommand
+        openclawCommand: options.openclawCommand,
+        computerUseMode
       });
     }
   }
@@ -127,7 +147,8 @@ export async function runDeckFactory(options: {
     specPath: currentSpecPath,
     deckPath: build.deckPath,
     operationsPath: build.operationsPath,
-    qaReportPath: qa.reportPath
+    qaReportPath: qa.reportPath,
+    capabilitiesPath
   };
 }
 
@@ -150,6 +171,7 @@ async function planSpecWithOpenClaw(options: {
   referenceDeck: PowerPointFileRoleRecord | null;
   plannerAgent?: string;
   openclawCommand?: string;
+  computerUseMode: ComputerUseMode;
 }): Promise<string> {
   const handoff = await readJsonFile<SkillDeckHandoff>(resolveFromCwd(options.handoffPath));
   await validateSchema("skill-deck-handoff", handoff);
@@ -178,10 +200,14 @@ async function planSpecWithOpenClaw(options: {
       template,
       templateProfile,
       slideLibraries,
-      referenceDeck: options.referenceDeck
+      referenceDeck: options.referenceDeck,
+      capabilities: {
+        computerUse: describeComputerUseCapability(options.computerUseMode)
+      }
     },
     prompt: [
       "Turn the skill handoff into a Deck Factory deck-spec.",
+      computerUsePromptInstruction(options.computerUseMode),
       "Use the requested style exactly.",
       "Prefer registered library slides when they directly satisfy requestedLibrarySlides or standard evergreen material.",
       "Use generated slides for the analytical body.",
@@ -214,11 +240,22 @@ async function writePowerPointManifest(options: {
   await writeJsonFile(path.join(options.runDir, "powerpoint-files.json"), manifest);
 }
 
+async function writeCapabilitiesManifest(runDir: string, computerUseMode: ComputerUseMode): Promise<string> {
+  const capabilitiesPath = path.join(runDir, "capabilities.json");
+  const manifest: RunCapabilitiesManifest = {
+    version: "deck-factory.capabilities.v1",
+    computerUse: describeComputerUseCapability(computerUseMode)
+  };
+  await writeJsonFile(capabilitiesPath, manifest);
+  return capabilitiesPath;
+}
+
 async function repairSpecWithOpenClaw(options: {
   specPath: string;
   qaReportPath: string;
   runDir: string;
   openclawCommand?: string;
+  computerUseMode: ComputerUseMode;
   attempt: number;
 }): Promise<string> {
   const spec = await readJsonFile<DeckSpec>(options.specPath);
@@ -236,10 +273,14 @@ async function repairSpecWithOpenClaw(options: {
       version: "deck-factory.repair-context.v1",
       attempt: options.attempt,
       deckSpec: spec,
-      qaReport
+      qaReport,
+      capabilities: {
+        computerUse: describeComputerUseCapability(options.computerUseMode)
+      }
     },
     prompt: [
       "Repair the Deck Factory deck-spec based on the QA report.",
+      computerUsePromptInstruction(options.computerUseMode),
       "Return a complete replacement deck-spec JSON object.",
       "Keep the same style id and factual evidence.",
       "Prefer smaller text, simpler layouts, fewer bullets, or alternate registered layouts over inventing new content.",
@@ -269,6 +310,7 @@ async function reviewScreenshotsWithOpenClaw(options: {
   screenshotsDir: string;
   runDir: string;
   openclawCommand?: string;
+  computerUseMode: ComputerUseMode;
 }): Promise<Awaited<ReturnType<typeof qaDeck>>> {
   const spec = await readJsonFile<DeckSpec>(options.specPath);
   await validateSchema("deck-spec", spec);
@@ -292,12 +334,16 @@ async function reviewScreenshotsWithOpenClaw(options: {
       deterministicQaReport: qaReport,
       screenshotsDir: mirroredScreenshotsDir ?? options.screenshotsDir,
       localScreenshotsDir: options.screenshotsDir,
+      capabilities: {
+        computerUse: describeComputerUseCapability(options.computerUseMode)
+      },
       screenshotAccess: mirroredScreenshotsDir
         ? "screenshotsDir has been mirrored to the OpenClaw host"
         : "screenshotsDir is local to the Deck Factory process"
     },
     prompt: [
       "Review the rendered deck screenshots for visual quality.",
+      computerUsePromptInstruction(options.computerUseMode),
       "Inspect the screenshot files in screenshotsDir if your runtime can access local files.",
       "Return a complete qa-report JSON object.",
       "Preserve deterministic failure findings from deterministicQaReport.",

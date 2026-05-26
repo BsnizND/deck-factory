@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { createRequire } from "node:module";
 import { promisify } from "node:util";
 import type { Command } from "commander";
+import { resolveComputerUseMode, type ComputerUseMode } from "../../capabilities/computer-use.js";
 import {
   DEFAULT_OPENCLAW_AGENT,
   DEFAULT_OPENCLAW_COMMAND,
@@ -35,10 +36,16 @@ export function registerDoctorCommand(program: Command): void {
       "--openclaw-command <command>",
       `Command used to invoke OpenClaw. Defaults to DECK_FACTORY_OPENCLAW_COMMAND or '${DEFAULT_OPENCLAW_COMMAND}'.`
     )
-    .action(async (options: { json?: boolean; workerAgent: string; openclawCommand?: string }) => {
+    .option(
+      "--computer-use <mode>",
+      "Computer Use integration mode to report: off, optional, or required. Defaults to DECK_FACTORY_COMPUTER_USE or off."
+    )
+    .action(async (options: { json?: boolean; workerAgent: string; openclawCommand?: string; computerUse?: string }) => {
+      const computerUseMode = resolveComputerUseMode(options.computerUse);
       const checks = await runDoctorChecks({
         workerAgent: options.workerAgent,
-        openclawCommand: resolveOpenClawCommand(options.openclawCommand)
+        openclawCommand: resolveOpenClawCommand(options.openclawCommand),
+        computerUseMode
       });
       const ok = checks.every((check) => check.status === "ok" || check.status === "warning");
       if (options.json) {
@@ -58,7 +65,11 @@ export function registerDoctorCommand(program: Command): void {
     });
 }
 
-async function runDoctorChecks(options: { workerAgent: string; openclawCommand: OpenClawCommand }): Promise<DoctorCheck[]> {
+async function runDoctorChecks(options: {
+  workerAgent: string;
+  openclawCommand: OpenClawCommand;
+  computerUseMode: ComputerUseMode;
+}): Promise<DoctorCheck[]> {
   const checks: DoctorCheck[] = [];
   checks.push(await commandVersionCheck("node", ["--version"], "Node.js"));
   checks.push(await commandVersionCheck("npm", ["--version"], "npm"));
@@ -66,8 +77,33 @@ async function runDoctorChecks(options: { workerAgent: string; openclawCommand: 
   checks.push(packageVersionCheck("pptxgenjs", "Renderer: PptxGenJS"));
   checks.push(await openClawCheck(options.openclawCommand));
   checks.push(await openClawWorkerCheck(options.openclawCommand, options.workerAgent));
+  checks.push(computerUseCheck(options.computerUseMode));
   checks.push(...(await rasterizerChecks()));
   return checks;
+}
+
+function computerUseCheck(mode: ComputerUseMode): DoctorCheck {
+  if (mode === "off") {
+    return {
+      name: "Computer Use",
+      status: "ok",
+      detail: "Disabled for Deck Factory runs; rendering and QA do not require desktop UI control."
+    };
+  }
+  if (mode === "optional") {
+    return {
+      name: "Computer Use",
+      status: "warning",
+      detail:
+        "Optional only. Deck Factory will still render and QA without desktop UI control; any @Computer verification must be proven by the orchestrating agent after the deck exists."
+    };
+  }
+  return {
+    name: "Computer Use",
+    status: "missing",
+    detail:
+      "Required by configuration, but Deck Factory has no built-in desktop-control verifier. Use --computer-use off/optional or run a separate proven @Computer verification gate after deck creation."
+  };
 }
 
 function packageVersionCheck(packageName: string, name: string): DoctorCheck {

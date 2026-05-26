@@ -76,12 +76,31 @@ npm run cli -- libraries list --style <style-id>
 
 ## Running A Deck
 
+## Computer Use Mode
+
+Computer Use is not required to render a Deck Factory deck. Treat desktop UI control as an optional deployment capability, separate from the core deck build.
+
+Use this default unless the user explicitly asks for desktop inspection:
+
+```bash
+DECK_FACTORY_COMPUTER_USE=off
+```
+
+When Computer Use is off, do not invoke `@Computer`, open PowerPoint through a desktop UI, inspect Telegram, or make success depend on macOS desktop control. Deck Factory must rely on its own generated `.pptx`, PowerPoint package checks, rasterized screenshots, schema-valid `qa-report.json`, and OpenClaw worker evidence.
+
+Supported CLI modes:
+
+- `--computer-use off`: default. No desktop UI control is used or required.
+- `--computer-use optional`: the deck build still succeeds or fails without desktop UI control; an orchestrator may run a separate post-build desktop check if that path is proven ready.
+- `--computer-use required`: use only for deployments that have a separate proven Computer Use verification gate. The Deck Factory CLI records the requirement but does not perform desktop UI control itself.
+
 For an upstream skill handoff:
 
 ```bash
 npm run cli -- run \
   --style "<style id or display name>" \
-  --handoff <path-to-skill-deck-handoff.json>
+  --handoff <path-to-skill-deck-handoff.json> \
+  --computer-use off
 ```
 
 If `--out` is omitted, Deck Factory writes to:
@@ -96,7 +115,8 @@ For an approved deck spec:
 npm run cli -- run \
   --style "<style id or display name>" \
   --spec <path-to-deck-spec.json> \
-  --out <run-directory>
+  --out <run-directory> \
+  --computer-use off
 ```
 
 ## QA Gates
@@ -119,6 +139,7 @@ The final user-facing artifact is:
 Internal evidence stays in the run directory:
 
 - `deck-spec.json`
+- `capabilities.json`
 - `operations.jsonl`
 - `qa-report.json`
 - `screenshots/`
