@@ -32,13 +32,17 @@ const schemaFileByName: Record<SchemaName, string> = {
 };
 
 export async function validateSchema(name: SchemaName, value: unknown): Promise<void> {
-  const schema = await readJsonFile<Record<string, unknown>>(path.join(schemaRoot(), schemaFileByName[name]));
+  const schema = await loadSchema(name);
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);
   const validate = ajv.compile(schema);
   if (!validate(value)) {
     fail(`Schema validation failed for ${name}:\n${formatAjvErrors(validate.errors ?? [])}`);
   }
+}
+
+export async function loadSchema(name: SchemaName): Promise<Record<string, unknown>> {
+  return readJsonFile<Record<string, unknown>>(path.join(schemaRoot(), schemaFileByName[name]));
 }
 
 function schemaRoot(): string {

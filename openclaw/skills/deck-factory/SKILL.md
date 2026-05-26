@@ -18,7 +18,7 @@ Use Deck Factory when the user asks for:
 
 ## Non-Goals
 
-Do not hand-edit PowerPoint XML, OOXML package parts, or slide screenshots directly. Do not create placeholder decks, fake QA reports, canned screenshots, or success-looking output after a failed run. Do not call model providers directly from Deck Factory code; model judgment must go through the configured OpenClaw worker lanes.
+Do not hand-edit PowerPoint XML, OOXML package parts, or slide screenshots directly. Do not create placeholder decks, fake QA reports, canned screenshots, or success-looking output after a failed run. Do not call model providers directly from Deck Factory code; model judgment must go through the configured OpenClaw execution lane. Do not create or require a new OpenClaw worker agent for Deck Factory; use an approved existing execution lane selected by the deployment.
 
 ## Required Inputs
 
@@ -75,6 +75,8 @@ npm run cli -- libraries list --style <style-id>
 ```
 
 ## Running A Deck
+
+Run Deck Factory from an existing approved execution lane with repository filesystem access. Do not create a new OpenClaw agent as part of a deck run. If the deployment has not chosen an execution lane yet, stop and ask the operator which existing lane should run Deck Factory. Prefer `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` for schema-only planning and screenshot review so Deck Factory uses OpenClaw's tool-free `infer model run` surface for JSON worker calls.
 
 ## Computer Use Mode
 
@@ -152,7 +154,7 @@ Return evidence only when the user asks or when explaining a failure.
 Stop and report the exact missing prerequisite when:
 
 - OpenClaw is unavailable
-- the configured worker agent does not exist
+- no approved existing OpenClaw execution lane is available
 - model credentials are unavailable through OpenClaw
 - LibreOffice, ImageMagick, or Ghostscript is missing
 - the requested style is not registered

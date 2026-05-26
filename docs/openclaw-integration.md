@@ -230,19 +230,25 @@ Run the deterministic public smoke:
 npm run smoke:public
 ```
 
-Run the full OpenClaw handoff smoke once a worker agent is configured:
+Run the full OpenClaw handoff smoke once an approved existing execution lane is configured:
 
 ```bash
-DECK_FACTORY_OPENCLAW_AGENT=deck-factory-planner npm run smoke:public -- --with-openclaw
+DECK_FACTORY_OPENCLAW_AGENT=<existing-agent-id> \
+DECK_FACTORY_OPENCLAW_MODEL=<provider/model> \
+npm run smoke:public -- --with-openclaw
 ```
 
-If the worker agent lives behind a custom command, provide:
+If the execution lane lives behind a custom command, provide:
 
 ```bash
 DECK_FACTORY_OPENCLAW_COMMAND="<openclaw command>" \
 DECK_FACTORY_OPENCLAW_AGENT="<agent-id>" \
 npm run smoke:public -- --with-openclaw
 ```
+
+Do not create a new OpenClaw worker agent just to run Deck Factory. Pick an existing lane that already has the filesystem, model, and tool permissions required by the deployment, then record that override outside the public defaults.
+
+For schema-only planning and screenshot-review calls, prefer `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` so Deck Factory uses OpenClaw's `infer model run` surface instead of asking a conversational agent lane to behave like a JSON function. The outer workflow can still be launched by an existing execution lane such as a Jay worker.
 
 The full smoke produces:
 

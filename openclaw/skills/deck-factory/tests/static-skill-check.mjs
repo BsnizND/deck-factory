@@ -21,7 +21,9 @@ const requiredPhrases = [
   "npm run cli -- run",
   "--computer-use off",
   "artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx",
-  "Do not re-extract a registered current template or slide library on every run"
+  "Do not re-extract a registered current template or slide library on every run",
+  "Do not create or require a new OpenClaw worker agent",
+  "approved existing execution lane"
 ];
 
 const forbiddenPublicDefaults = [

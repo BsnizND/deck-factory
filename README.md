@@ -8,7 +8,7 @@ The core bet is simple: great decks should not be generated as disposable images
 
 Deck Factory now has a working v0 implementation path: schema validation, sample `.pptx` fixtures, cache-aware template/style/slide-library registration, explicit PowerPoint file roles, editable PPTX rendering, screenshot rasterization, OpenClaw-backed screenshot review, spec-first repair, PowerPoint package integrity checks, a repo-shipped OpenClaw skill package, and an explicit Computer Use mode switch.
 
-It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to the configured OpenClaw command and worker agent. Public defaults prefer local `openclaw`; remote commands and personal worker agents are deployment overrides.
+It is still intentionally conservative. Screenshot QA requires LibreOffice (`soffice` or `libreoffice`), ImageMagick (`magick`), and Ghostscript (`gs`) on `PATH`; OpenClaw model judgment defaults to the configured OpenClaw command and execution lane. Public defaults prefer local `openclaw`; remote commands and personal agent ids are deployment overrides.
 
 ## The Pipeline
 
@@ -107,7 +107,7 @@ The end-to-end entrypoint is:
 npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c --computer-use off
 ```
 
-`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The public default OpenClaw command is local `openclaw`, and the public default planner agent is `deck-factory-planner`. Override with `DECK_FACTORY_OPENCLAW_COMMAND`, `DECK_FACTORY_OPENCLAW_AGENT`, `--openclaw-command`, or `--planner-agent` for local deployments. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
+`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The public default OpenClaw command is local `openclaw`, and the CLI default planner identifier is `deck-factory-planner` for standalone setups. Production deployments should override with `DECK_FACTORY_OPENCLAW_COMMAND`, `DECK_FACTORY_OPENCLAW_AGENT`, `--openclaw-command`, or `--planner-agent` to use an approved existing execution lane. Set `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` when the deployment should use OpenClaw's tool-free `infer model run` path for schema-only JSON planning and screenshot review. Do not create a new OpenClaw worker agent just to run Deck Factory. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
 
 Computer Use is intentionally separate from the core deck pipeline. Set `DECK_FACTORY_COMPUTER_USE=off` or pass `--computer-use off` when the runtime should not rely on desktop UI control. Use `optional` only when an orchestrating agent may run a separate post-build desktop check. Use `required` only when that external verification path is already proven; the Deck Factory CLI records the requirement but does not drive `@Computer` itself.
 
@@ -141,10 +141,12 @@ openclaw skills install ./openclaw/skills/deck-factory --as deck-factory --agent
 openclaw skills check --agent <agent-id> --json
 ```
 
-Run a full smoke with OpenClaw when a worker agent is configured:
+Run a full smoke with OpenClaw when an approved existing execution lane is configured:
 
 ```bash
-DECK_FACTORY_OPENCLAW_AGENT=deck-factory-planner npm run smoke:public -- --with-openclaw
+DECK_FACTORY_OPENCLAW_AGENT=<existing-agent-id> \
+DECK_FACTORY_OPENCLAW_MODEL=<provider/model> \
+npm run smoke:public -- --with-openclaw
 ```
 
 For deployments where OpenClaw is reached through a remote command, set `DECK_FACTORY_OPENCLAW_COMMAND` explicitly. The public docs and skill do not require a private host or personal agent id.

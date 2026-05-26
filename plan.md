@@ -348,7 +348,7 @@ The repair loop should rewrite the deck spec first. Treat renderer operations as
 
 ### AI Runtime
 
-Deck Factory's AI should come from OpenClaw, following the same broad pattern LifeOS uses: deterministic application code prepares bounded JSON context and schemas, then OpenClaw worker lanes perform model judgment and return structured JSON.
+Deck Factory's AI should come from OpenClaw, following the same broad pattern LifeOS uses: deterministic application code prepares bounded JSON context and schemas, then an approved existing OpenClaw execution lane performs model judgment and returns structured JSON.
 
 Do not call OpenAI, Anthropic, or any model provider directly from Deck Factory core code for v0. Deck Factory should invoke OpenClaw as the model/runtime boundary.
 
@@ -363,7 +363,7 @@ The local CLI remains responsible for:
 - artifact layout
 - fail-closed error handling
 
-OpenClaw worker lanes are responsible for:
+OpenClaw-backed model calls are responsible for:
 
 - interpreting a prepared template profile
 - mapping a brief to a deck outline
@@ -372,7 +372,7 @@ OpenClaw worker lanes are responsible for:
 - producing repair plans
 - deciding whether the deck is ready for handoff after evidence review
 
-OpenClaw outputs must be schema-validated before they affect the run.
+For schema-only planning, review, and repair calls, prefer OpenClaw's tool-free `infer model run` surface through `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>`. Use conversational agent lanes only when the deployment has explicitly configured them to behave as JSON workers. OpenClaw outputs must be schema-validated before they affect the run.
 
 ### User Handoff
 
@@ -446,9 +446,9 @@ deck-factory/
       burson-library.pptx
       snizco-agency-library.pptx
   openclaw/
-    agents/
-      deck-factory-planner.json
-      deck-factory-reviewer.json
+    prompts/
+      planner.json
+      reviewer.json
     skills/
       deck-factory/
         SKILL.md
@@ -527,17 +527,19 @@ Every command should fail closed with a specific missing prerequisite or validat
 
 Deck Factory should be implemented as an OpenClaw-backed local tool, not as a standalone AI app with its own model-provider abstraction.
 
-### Worker Lanes
+### Execution Lane Policy
 
-Use dedicated OpenClaw worker agents so deck work does not pollute or slow a user's main conversation lane.
+Do not require new OpenClaw worker agents for Deck Factory. Deck Factory should run through an approved existing execution lane selected by the deployment. That lane must already have the filesystem, model/auth, and tool permissions needed to run the Deck Factory CLI and return schema-valid JSON.
 
-Initial lanes:
+The Deck Factory code can still use logical roles inside prompts, schemas, run directories, and artifact names:
 
-- `deck-factory-planner`: template interpretation, outline planning, and initial `deck-spec.json` drafting.
-- `deck-factory-reviewer`: screenshot review, visual critique, and repair-plan generation.
-- `deck-factory-polisher`: optional final copy, notes, source, and executive polish pass.
+- planner: template interpretation, outline planning, and initial `deck-spec.json` drafting.
+- reviewer: screenshot review, visual critique, and repair-plan generation.
+- polisher: optional final copy, notes, source, and executive polish pass.
 
-Each lane should be configured with OpenClaw's native agent/runtime configuration. The expected runtime is Codex through OpenClaw, with no fallback provider unless explicitly configured by the operator.
+Those are Deck Factory workflow roles, not a requirement to create `deck-factory-*` OpenClaw agents. The expected runtime is Codex through OpenClaw, with no fallback provider unless explicitly configured by the operator.
+
+For Brian/Jay's deployment, Jay should route Deck Factory execution to the existing `jay-browser-worker` lane, with `--computer-use off` and without browser or desktop UI control for ordinary deck builds. `jay-computer-use` is only for an explicitly requested post-build desktop check. No `snizserver` OpenClaw worker agent may be created, configured, allowlisted, or renamed for Deck Factory without Brian approving the agent id, purpose, permissions, runtime config, and rollback plan first.
 
 ### JSON Worker Pattern
 
@@ -545,7 +547,7 @@ Mirror the LifeOS JSON-worker shape:
 
 1. Deck Factory writes a run directory.
 2. Deterministic code writes `context.json`, `schema.json`, `prompt.txt`, and `request.json`.
-3. Deck Factory invokes OpenClaw with a lane-specific session id.
+3. Deck Factory invokes OpenClaw with a role-specific session id against the configured existing agent.
 4. OpenClaw returns an assistant response envelope.
 5. Deck Factory extracts assistant text.
 6. Deck Factory parses exactly one JSON object.
@@ -556,7 +558,7 @@ Representative command shape:
 
 ```bash
 openclaw agent \
-  --agent deck-factory-planner \
+  --agent <existing-agent-id> \
   --session-id deck-factory-plan-<run-id> \
   --message "$WORKER_PROMPT" \
   --json \
@@ -576,7 +578,7 @@ The skill:
 - reuse cached template profiles and slide-library indexes instead of re-extracting on every run
 - register templates and slide libraries only when the user supplies new source files or asks for refresh
 - call the local CLI instead of hand-editing PowerPoint files
-- keep AI judgment behind the configured OpenClaw worker lanes
+- keep AI judgment behind the configured OpenClaw execution lane
 - require screenshot QA before calling a deck final
 - require PowerPoint package-integrity QA before calling a deck final
 - choose deterministic output directories for agent-initiated runs
@@ -601,8 +603,8 @@ Deck Factory should not assume model credentials exist.
 Before any AI step, it should verify:
 
 - `openclaw` is installed and executable.
-- the configured Deck Factory worker agent exists.
-- the worker agent has a usable model/auth profile.
+- the configured existing OpenClaw execution lane exists.
+- the selected agent has a usable model/auth profile.
 - `openclaw agent --json` returns a parseable envelope on a smoke prompt.
 - required local tools for rendering/rasterization are installed.
 
@@ -1094,12 +1096,12 @@ Acceptance checks:
 
 Deliverables:
 
-- `deck-factory plan` or internal planning stage backed by `deck-factory-planner`.
+- `deck-factory plan` or internal planning stage backed by the configured existing OpenClaw execution lane.
 - Prompt/schema for turning a brief and template profile into `deck-spec.json`.
 - Prompt/schema for turning `skill-deck-handoff.json` into `deck-spec.json`.
 - Prompt/schema for choosing generated slides versus library slides.
 - Missing-input detection for assets, data, citations, or brand constraints.
-- OpenClaw worker artifact capture.
+- OpenClaw execution artifact capture.
 
 Acceptance checks:
 
@@ -1156,7 +1158,7 @@ Acceptance checks:
 - Evaluator can review sample screenshots.
 - Evaluator produces structured findings.
 - Failing slides get concrete repair recommendations.
-- Missing OpenClaw worker config or model credentials fail loudly with the exact missing prerequisite.
+- Missing OpenClaw execution-lane config or model credentials fail loudly with the exact missing prerequisite.
 
 ### Phase 7: Spec-First Repair Loop
 
@@ -1164,7 +1166,7 @@ Deliverables:
 
 - `deck-factory repair`.
 - Repair loop that revises `deck-spec.json` first.
-- OpenClaw-backed repair worker.
+- OpenClaw-backed repair role.
 - Rerender after repair.
 - Attempt history preserved in the run directory.
 - Direct operation patches allowed only behind an explicit technical-fix path.
@@ -1220,7 +1222,7 @@ Acceptance checks:
 - Skill uses the screenshot and QA loop before calling a deck final.
 - Skill returns `deck.pptx` as the primary artifact.
 - Skill does not hide failures behind dummy data or placeholder outputs.
-- Skill routes AI judgment through OpenClaw worker lanes rather than direct provider calls.
+- Skill routes AI judgment through the configured OpenClaw execution lane rather than direct provider calls.
 - Skill does not assume Brian-specific hostnames, paths, or agent ids.
 - Unknown style names produce an explicit template-registration request.
 - Registered styles are reused without re-extraction when fingerprints are current.
@@ -1258,7 +1260,7 @@ V0 is complete when Deck Factory can:
 6. Produce a preparation report for templates or slide libraries that are not ready.
 7. Extract a minimal but useful template profile.
 8. Accept a structured handoff from another skill, such as a 5C research skill.
-9. Use OpenClaw worker lanes to plan or revise a semantic deck spec.
+9. Use the configured existing OpenClaw execution lane to plan or revise a semantic deck spec.
 10. Validate a semantic deck spec.
 11. Render a 3 to 5 slide editable deck.
 12. Mix generated slides and selected library slides in the same deck.
@@ -1294,7 +1296,7 @@ Deck Factory must stop with a concrete error when:
 - rasterization fails
 - mandatory QA fails after max repair attempts
 - OpenClaw is unavailable
-- required OpenClaw worker agents are missing
+- the required OpenClaw execution lane is missing or unavailable
 - model credentials are required but unavailable through OpenClaw
 - the final deck cannot be written
 

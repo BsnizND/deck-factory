@@ -322,12 +322,20 @@ async function reviewScreenshotsWithOpenClaw(options: {
     runDir: options.runDir,
     openclawCommand: options.openclawCommand
   });
+  const screenshotFiles = (await readdir(options.screenshotsDir))
+    .filter((fileName) => /^slide-\d+\.png$/.test(fileName))
+    .sort()
+    .map((fileName) => path.join(options.screenshotsDir, fileName));
+  if (screenshotFiles.length === 0) {
+    fail(`No screenshots were available for OpenClaw review: ${options.screenshotsDir}`);
+  }
   const result = await runOpenClawJsonWorker<unknown>({
     lane: "deck-factory-screenshot-review",
     agent: spec.openclaw.reviewerAgent,
     schemaName: "qa-report",
     runDir: reviewRunDir,
     openclawCommand: options.openclawCommand,
+    filePaths: screenshotFiles,
     context: {
       version: "deck-factory.screenshot-review-context.v1",
       deckSpec: spec,
@@ -344,6 +352,7 @@ async function reviewScreenshotsWithOpenClaw(options: {
     prompt: [
       "Review the rendered deck screenshots for visual quality.",
       computerUsePromptInstruction(options.computerUseMode),
+      "The slide screenshots are attached as image files when the OpenClaw model runtime supports file inputs.",
       "Inspect the screenshot files in screenshotsDir if your runtime can access local files.",
       "Return a complete qa-report JSON object.",
       "Preserve deterministic failure findings from deterministicQaReport.",

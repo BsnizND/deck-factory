@@ -80,7 +80,7 @@ if (withOpenClaw && doctorStatus !== 0) {
   process.exit(doctorStatus);
 }
 if (!withOpenClaw && doctorStatus !== 0) {
-  console.error("Doctor reported an OpenClaw setup blocker. That is allowed for the no-OpenClaw public smoke; rerun with --with-openclaw after configuring a worker agent.");
+  console.error("Doctor reported an OpenClaw setup blocker. That is allowed for the no-OpenClaw public smoke; rerun with --with-openclaw after configuring an approved existing execution lane.");
 }
 
 if (withOpenClaw) {
