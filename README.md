@@ -83,6 +83,7 @@ The workflow should support:
 - [docs/execution-plan.md](docs/execution-plan.md): ordered remaining work to finish the project.
 - [docs/openclaw-integration.md](docs/openclaw-integration.md): the plan for making Deck Factory portable for OpenClaw users.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
+- [docs/slide-template-instructions.md](docs/slide-template-instructions.md): feature proposal for layout guidance and placeholder writing contracts.
 - [docs/template-library-onboarding.md](docs/template-library-onboarding.md): how to prepare and register templates and slide libraries.
 
 ## Current CLI

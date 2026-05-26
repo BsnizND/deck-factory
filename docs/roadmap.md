@@ -65,6 +65,15 @@
 - Document local deployment overrides separately from public setup.
 - Publish the exact supported artifact contract: final `deck.pptx` plus optional internal evidence.
 
+## Phase 8: Slide Template Instructions
+
+- Add a guidance layer that explains what each template layout is for, when to use it, and when to avoid it.
+- Add placeholder-level writing contracts for action titles, subtitles, body copy, charts, tables, images, footers, and notes.
+- Let the OpenClaw planner compare the originating agent's intended story against the layouts available in the registered template.
+- Require each generated slide spec to state why a layout was selected and how each placeholder should be filled.
+- Keep extracted template facts separate from editable guidance, likely through a linked `template-instructions.json` sidecar.
+- See [slide-template-instructions.md](slide-template-instructions.md) for the feature proposal.
+
 ## Sample Templates
 
 Deck Factory should ship sample templates before claiming v0 usability:
