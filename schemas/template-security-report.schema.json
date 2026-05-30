@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.template-security-report.v1",
+  "type": "object",
+  "required": ["version", "status", "templatePath", "scannedAt", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "status": { "enum": ["passed", "warning", "failed"] },
+    "templatePath": { "type": "string" },
+    "scannedAt": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "category", "message"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "enum": ["BLOCKER", "MAJOR", "MINOR", "INFO"] },
+          "category": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.source-map.v1",
+  "type": "object",
+  "required": ["version", "createdAt", "styleId", "slides"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "styleId": { "type": "string" },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slideId", "title", "templateLayoutId", "layoutSelectionReason", "citations", "assets", "sourceSections", "slideLibrarySourceId"],
+        "additionalProperties": false,
+        "properties": {
+          "slideId": { "type": "string" },
+          "title": { "type": "string" },
+          "templateLayoutId": { "type": "string" },
+          "layoutSelectionReason": { "type": ["string", "null"] },
+          "citations": { "type": "array", "items": { "type": "string" } },
+          "assets": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "sourceSections": { "type": "array", "items": { "type": "string" } },
+          "slideLibrarySourceId": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

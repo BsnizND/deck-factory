@@ -15,20 +15,32 @@ const addFormats = require("ajv-formats") as (ajv: unknown) => void;
 export type SchemaName =
   | "deck-spec"
   | "qa-report"
+  | "run-summary"
   | "skill-deck-handoff"
   | "slide-library"
+  | "source-map"
   | "style-pack"
+  | "template-compliance-report"
+  | "template-instructions"
   | "template-profile"
-  | "template-registry";
+  | "template-registry"
+  | "template-security-report"
+  | "runtime-provenance";
 
 const schemaFileByName: Record<SchemaName, string> = {
   "deck-spec": "deck-spec.schema.json",
   "qa-report": "qa-report.schema.json",
+  "run-summary": "run-summary.schema.json",
   "skill-deck-handoff": "skill-deck-handoff.schema.json",
   "slide-library": "slide-library.schema.json",
+  "source-map": "source-map.schema.json",
   "style-pack": "style-pack.schema.json",
+  "template-compliance-report": "template-compliance-report.schema.json",
+  "template-instructions": "template-instructions.schema.json",
   "template-profile": "template-profile.schema.json",
-  "template-registry": "template-registry.schema.json"
+  "template-registry": "template-registry.schema.json",
+  "template-security-report": "template-security-report.schema.json",
+  "runtime-provenance": "runtime-provenance.schema.json"
 };
 
 export async function validateSchema(name: SchemaName, value: unknown): Promise<void> {

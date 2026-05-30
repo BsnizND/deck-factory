@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.template-instructions.v1",
+  "type": "object",
+  "required": ["version", "styleId", "layoutInstructions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "styleId": { "type": "string" },
+    "layoutInstructions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "layoutId",
+          "displayName",
+          "slideKind",
+          "narrativeRole",
+          "useWhen",
+          "avoidWhen",
+          "worksFor",
+          "contentVoice",
+          "requiredPlaceholders",
+          "optionalPlaceholders",
+          "placeholderContracts",
+          "assetGuidance"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "layoutId": { "type": "string" },
+          "displayName": { "type": "string" },
+          "slideKind": {
+            "enum": ["recommendation", "section", "content", "comparison", "chart", "table", "quote", "appendix", "custom"]
+          },
+          "narrativeRole": { "type": "string" },
+          "useWhen": { "type": "array", "items": { "type": "string" } },
+          "avoidWhen": { "type": "array", "items": { "type": "string" } },
+          "worksFor": { "type": "array", "items": { "type": "string" } },
+          "contentVoice": { "type": "string" },
+          "requiredPlaceholders": { "type": "array", "items": { "type": "string" } },
+          "optionalPlaceholders": { "type": "array", "items": { "type": "string" } },
+          "placeholderContracts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "role",
+                "contentKind",
+                "writeAs",
+                "voice",
+                "minItems",
+                "maxItems",
+                "maxCharacters",
+                "maxCharactersPerItem",
+                "requiresCitations",
+                "requiresAsset",
+                "validationHints"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "role": { "type": "string" },
+                "contentKind": { "type": "string" },
+                "writeAs": { "type": "string" },
+                "voice": { "type": "string" },
+                "minItems": { "type": ["number", "null"] },
+                "maxItems": { "type": ["number", "null"] },
+                "maxCharacters": { "type": ["number", "null"] },
+                "maxCharactersPerItem": { "type": ["number", "null"] },
+                "requiresCitations": { "type": "boolean" },
+                "requiresAsset": { "type": "boolean" },
+                "validationHints": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "assetGuidance": {
+            "type": "object",
+            "required": ["imageRole", "imageShouldShow", "avoid"],
+            "additionalProperties": false,
+            "properties": {
+              "imageRole": { "type": "string" },
+              "imageShouldShow": { "type": "string" },
+              "avoid": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

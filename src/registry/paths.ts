@@ -33,6 +33,18 @@ export function templatePrepReportPath(templateId: string, root = DEFAULT_REGIST
   return path.join(reportsDir(root), `${templateId}.template-prep-report.md`);
 }
 
+export function templateSecurityReportPath(templateId: string, root = DEFAULT_REGISTRY_DIR): string {
+  return path.join(reportsDir(root), `${templateId}.template-security-report.json`);
+}
+
+export function templateInstructionsDir(root = DEFAULT_REGISTRY_DIR): string {
+  return path.join(registryRoot(root), "template-instructions");
+}
+
+export function templateInstructionsPath(styleId: string, root = DEFAULT_REGISTRY_DIR): string {
+  return path.join(templateInstructionsDir(root), `${styleId}.template-instructions.json`);
+}
+
 export function slideLibrariesDir(root = DEFAULT_REGISTRY_DIR): string {
   return path.join(registryRoot(root), "slide-libraries");
 }

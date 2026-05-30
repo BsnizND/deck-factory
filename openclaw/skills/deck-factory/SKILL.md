@@ -74,6 +74,16 @@ npm run cli -- templates inspect <style-id>
 npm run cli -- libraries list --style <style-id>
 ```
 
+Template instructions are optional but preferred for production styles:
+
+```bash
+npm run cli -- templates instructions init <style-id>
+npm run cli -- templates instructions validate <style-id>
+npm run cli -- templates instructions inspect <style-id>
+```
+
+When instructions exist, the planner must choose registered layouts, include `selectionReason` on each generated slide, and fill content by `placeholderId` where possible. Do not ignore placeholder writing contracts; revise the deck spec first when a contract fails.
+
 ## Running A Deck
 
 Run Deck Factory from an existing approved execution lane with repository filesystem access. Do not create a new OpenClaw agent as part of a deck run. If the deployment has not chosen an execution lane yet, stop and ask the operator which existing lane should run Deck Factory. Prefer `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` for schema-only planning and screenshot review so Deck Factory uses OpenClaw's tool-free `infer model run` surface for JSON worker calls.
@@ -125,10 +135,14 @@ npm run cli -- run \
 
 Do not call a deck final until Deck Factory has:
 
+- written `run-summary.json`
+- passed template security scanning
+- passed template compliance checks when template instructions exist
 - rendered an editable `.pptx`
 - passed PowerPoint package-integrity checks
 - rasterized every slide to PNG
-- produced a schema-valid `qa-report.json`
+- produced a schema-valid severity-coded `qa-report.json`
+- written runtime provenance and source-map artifacts
 - completed OpenClaw screenshot review when the run path invokes it
 - completed configured repair attempts or failed with a concrete blocker
 
@@ -142,6 +156,11 @@ Internal evidence stays in the run directory:
 
 - `deck-spec.json`
 - `capabilities.json`
+- `run-summary.json`
+- `template-compliance-report.json`
+- `template-security-report.json`
+- `runtime-provenance.json`
+- `source-map.json`
 - `operations.jsonl`
 - `qa-report.json`
 - `screenshots/`
@@ -196,11 +215,12 @@ Stop and report the exact missing prerequisite when:
 - the template deck is not a prepared `.pptx`
 - a slide library entry is missing or lacks required fields
 - schema validation fails
+- template security or template compliance has blocker findings
 - rendering, package integrity, rasterization, QA, or repair fails
 
 ## Final Response Contract
 
-On success, return the final deck path and a short verification summary. On failure, return the blocker, the failing command or artifact path, and the next operator action. Do not bury the deck path in verbose logs.
+On success, return the final deck path and a short verification summary. Include the status from `run-summary.json`, the QA status, and any blocker count. On failure, return the blocker, the failing command or artifact path, and the next operator action. Do not bury the deck path in verbose logs.
 
 ## Final Response Contract With Publishing
 

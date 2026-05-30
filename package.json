@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:gauntlet": "vitest run tests/gauntlet.test.ts",
     "cli": "tsx src/cli/index.ts",
     "generate:samples": "tsx scripts/generate-samples.ts",
     "check:skill": "node openclaw/skills/deck-factory/tests/static-skill-check.mjs",

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.runtime-provenance.v1",
+  "type": "object",
+  "required": ["version", "createdAt", "platform", "nodeVersion", "packageVersion", "renderer", "rasterizers", "templateFonts", "detectedFonts", "fontSubstitutions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "platform": { "type": "string" },
+    "nodeVersion": { "type": "string" },
+    "packageVersion": { "type": "string" },
+    "renderer": {
+      "type": "object",
+      "required": ["adapter", "library"],
+      "additionalProperties": false,
+      "properties": {
+        "adapter": { "type": "string" },
+        "library": { "type": "string" }
+      }
+    },
+    "rasterizers": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "templateFonts": { "type": "array", "items": { "type": "string" } },
+    "detectedFonts": { "type": "array", "items": { "type": "string" } },
+    "fontSubstitutions": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+  }
+}

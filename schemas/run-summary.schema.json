@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.run-summary.v1",
+  "type": "object",
+  "required": ["version", "status", "startedAt", "completedAt", "styleId", "inputHandoffPath", "inputSpecPath", "outputDeckPath", "slideCount", "gates", "blockerFindings", "repairAttempts", "artifactPaths"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "status": { "enum": ["pending", "running", "passed", "failed", "blocked", "repaired"] },
+    "startedAt": { "type": "string" },
+    "completedAt": { "type": ["string", "null"] },
+    "styleId": { "type": "string" },
+    "inputHandoffPath": { "type": ["string", "null"] },
+    "inputSpecPath": { "type": ["string", "null"] },
+    "outputDeckPath": { "type": ["string", "null"] },
+    "slideCount": { "type": ["number", "null"] },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "required"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "enum": ["pending", "running", "passed", "failed", "blocked", "skipped"] },
+          "required": { "type": "boolean" },
+          "message": { "type": "string" },
+          "artifactPath": { "type": "string" }
+        }
+      }
+    },
+    "blockerFindings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "repairAttempts": { "type": "number" },
+    "artifactPaths": { "type": "object", "additionalProperties": { "type": ["string", "null"] } }
+  }
+}

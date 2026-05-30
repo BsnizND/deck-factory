@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { registerTemplate, loadTemplateRegistry, inspectTemplate, refreshTemplate } from "../../registry/template-registry.js";
 import { defaultStylePack, loadStylePack, saveStylePack } from "../../registry/style-pack.js";
 import { DeckFactoryError } from "../../errors.js";
+import { initTemplateInstructions, inspectTemplateInstructions, validateTemplateInstructions } from "../../template/template-instructions.js";
 
 export function registerTemplatesCommand(program: Command): void {
   const templates = program.command("templates").description("Register, inspect, and refresh reusable template styles.");
@@ -27,6 +28,35 @@ export function registerTemplatesCommand(program: Command): void {
       });
       await upsertStylePackForTemplate(entry);
       console.log(JSON.stringify(entry, null, 2));
+    });
+
+  const instructions = templates.command("instructions").description("Manage human-editable template instruction sidecars.");
+
+  instructions
+    .command("init")
+    .description("Create template-instructions.json for a registered style from its extracted template profile.")
+    .argument("<style-id>", "Registered style/template id.")
+    .option("--force", "Overwrite existing instructions.")
+    .action(async (styleId: string, options: { force?: boolean }) => {
+      console.log(JSON.stringify(await initTemplateInstructions(styleId, { force: options.force }), null, 2));
+    });
+
+  instructions
+    .command("validate")
+    .description("Validate template-instructions.json for a registered style.")
+    .argument("<style-id>", "Registered style/template id.")
+    .action(async (styleId: string) => {
+      const loaded = await inspectTemplateInstructions(styleId);
+      await validateTemplateInstructions(loaded, styleId);
+      console.log(JSON.stringify({ status: "passed", styleId, layoutCount: loaded.layoutInstructions.length }, null, 2));
+    });
+
+  instructions
+    .command("inspect")
+    .description("Inspect template-instructions.json for a registered style.")
+    .argument("<style-id>", "Registered style/template id.")
+    .action(async (styleId: string) => {
+      console.log(JSON.stringify(await inspectTemplateInstructions(styleId), null, 2));
     });
 
   templates

@@ -21,10 +21,16 @@ import {
   type ArtifactPublishResult
 } from "../publishers/index.js";
 import { assertPowerPointFileRole, type PowerPointFileRoleRecord } from "../powerpoint/file-roles.js";
+import { scanTemplateSecurity } from "../powerpoint/template-security.js";
+import { writeRuntimeProvenance } from "../reports/runtime-provenance.js";
+import { createRunSummary, setGate, writeRunSummary } from "../reports/run-summary.js";
+import { writeSourceMap } from "../reports/source-map.js";
 import { inspectTemplate } from "../registry/template-registry.js";
 import { loadSlideLibrary } from "../registry/slide-library.js";
 import { resolveStylePack } from "../registry/style-pack.js";
 import { validateSchema } from "../schema/validate.js";
+import { validateDeckSpecTemplateCompliance } from "../template/template-compliance.js";
+import { loadTemplateInstructions } from "../template/template-instructions.js";
 import type { TemplateProfile } from "../template/extract-template-profile.js";
 import { readJsonFile, resolveFromCwd, writeJsonFile } from "../util/fs.js";
 import { qaDeck } from "../qa/qa-deck.js";
@@ -53,6 +59,11 @@ export interface RunDeckFactoryResult {
   publishResultPath?: string;
   publishResult?: ArtifactPublishResult;
   publishWarning?: string;
+  runSummaryPath: string;
+  templateComplianceReportPath: string;
+  templateSecurityReportPath: string;
+  runtimeProvenancePath: string;
+  sourceMapPath: string;
 }
 
 interface RunPowerPointManifest {
@@ -90,6 +101,14 @@ export async function runDeckFactory(options: {
   }
 
   const runDir = resolveFromCwd(options.outDir);
+  const runSummaryPath = path.join(runDir, "run-summary.json");
+  const summary = createRunSummary({
+    styleId: options.styleId,
+    handoffPath: options.handoffPath,
+    specPath: options.specPath
+  });
+  await writeRunSummary(runSummaryPath, summary);
+  try {
   const computerUseMode = resolveComputerUseMode(options.computerUseMode);
   const publishOptions = resolveArtifactPublishOptions({
     publish: options.publish,
@@ -99,6 +118,7 @@ export async function runDeckFactory(options: {
     artifactGatewayCommand: options.artifactGatewayCommand
   });
   const capabilitiesPath = await writeCapabilitiesManifest(runDir, computerUseMode);
+  summary.artifactPaths.capabilities = capabilitiesPath;
   const referenceDeck = options.referenceDeckPath
     ? await assertPowerPointFileRole(options.referenceDeckPath, "reference-deck")
     : null;
@@ -107,6 +127,39 @@ export async function runDeckFactory(options: {
     inputs: referenceDeck ? [referenceDeck] : [],
     outputPath: path.join(runDir, "deck.pptx")
   });
+  setGate(summary, "input", "passed", options.handoffPath ? "Validated handoff input path is configured." : "Validated supplied deck spec path is configured.");
+
+  const style = await resolveStylePack(options.styleId);
+  setGate(summary, "style-resolution", "passed", `Resolved style ${style.styleId}.`);
+  const template = await inspectTemplate(style.templateId);
+  const templateProfile = await readJsonFile<TemplateProfile>(resolveFromCwd(template.cachedProfilePath));
+  await validateSchema("template-profile", templateProfile);
+  setGate(summary, "template-profile", "passed", `Loaded cached template profile for ${template.templateId}.`, template.cachedProfilePath);
+
+  const templateSecurityReportPath = path.join(runDir, "template-security-report.json");
+  const securityReport = await scanTemplateSecurity({
+    templatePath: resolveFromCwd(template.sourceTemplateDeckPath),
+    outPath: templateSecurityReportPath
+  });
+  summary.artifactPaths.templateSecurityReport = templateSecurityReportPath;
+  setGate(summary, "template-security", securityReport.status === "failed" ? "failed" : "passed", `Template security scan ${securityReport.status}.`, templateSecurityReportPath);
+  if (securityReport.status === "failed") {
+    summary.blockerFindings.push(...securityReport.findings.filter((finding) => finding.severity === "BLOCKER"));
+    fail(`Template security scan failed. See report: ${templateSecurityReportPath}`);
+  }
+
+  const templateInstructions = await loadTemplateInstructions(style.styleId);
+  setGate(
+    summary,
+    "template-instructions",
+    templateInstructions ? "passed" : "skipped",
+    templateInstructions ? `Loaded ${templateInstructions.layoutInstructions.length} layout instruction(s).` : "No template instructions configured; using current compatibility behavior."
+  );
+
+  const runtimeProvenancePath = path.join(runDir, "runtime-provenance.json");
+  await writeRuntimeProvenance({ filePath: runtimeProvenancePath, templateProfile });
+  summary.artifactPaths.runtimeProvenance = runtimeProvenancePath;
+
   const specPath = options.specPath
     ? await prepareProvidedSpec(options.specPath, options.styleId, runDir)
     : await planSpecWithOpenClaw({
@@ -118,10 +171,36 @@ export async function runDeckFactory(options: {
         openclawCommand: options.openclawCommand,
         computerUseMode
       });
+  setGate(summary, "deck-spec", "passed", "Deck spec is schema-valid.", specPath);
+
+  const compliance = await validateDeckSpecTemplateCompliance({ specPath, outDir: runDir, writeReport: true });
+  const templateComplianceReportPath = compliance.reportPath ?? path.join(runDir, "template-compliance-report.json");
+  summary.artifactPaths.templateComplianceReport = templateComplianceReportPath;
+  setGate(
+    summary,
+    "template-compliance",
+    compliance.report.status === "failed" ? "failed" : "passed",
+    `Template compliance ${compliance.report.status}.`,
+    templateComplianceReportPath
+  );
+  if (compliance.report.status === "failed") {
+    summary.blockerFindings.push(...compliance.report.findings.filter((finding) => finding.severity === "BLOCKER"));
+    fail(`Deck spec failed template compliance. See report: ${templateComplianceReportPath}`);
+  }
+  setGate(summary, "assets", "passed", "No required template-instruction assets are missing.");
+
+  const sourceMapPath = path.join(runDir, "source-map.json");
+  await writeSourceMap({ specPath, outPath: sourceMapPath });
+  summary.artifactPaths.sourceMap = sourceMapPath;
 
   let currentSpecPath = specPath;
   let build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
+  setGate(summary, "render", "passed", `Rendered ${build.slideCount} slide(s).`, build.deckPath);
+  setGate(summary, "final-deck", "passed", "Final deck path is written.", build.deckPath);
   let qa = await qaDeck({ deckPath: build.deckPath, specPath: currentSpecPath, outDir: runDir, failOnError: false });
+  setGate(summary, "package-integrity", qa.report.renderStatus === "passed" ? "passed" : "failed", `Package integrity ${qa.report.renderStatus}.`, qa.reportPath);
+  setGate(summary, "rasterization", qa.report.rasterizationStatus === "passed" ? "passed" : "failed", `Rasterization ${qa.report.rasterizationStatus}.`, qa.reportPath);
+  setGate(summary, "deterministic-qa", qa.report.status === "passed" ? "passed" : "failed", `Deterministic QA ${qa.report.status}.`, qa.reportPath);
   if (qa.report.status === "passed") {
     qa = await reviewScreenshotsWithOpenClaw({
       specPath: currentSpecPath,
@@ -131,11 +210,15 @@ export async function runDeckFactory(options: {
       openclawCommand: options.openclawCommand,
       computerUseMode
     });
+    setGate(summary, "agentic-review", qa.report.status === "passed" ? "passed" : "failed", `Screenshot review ${qa.report.status}.`, qa.reportPath);
+  } else {
+    setGate(summary, "agentic-review", "skipped", "Skipped because deterministic QA did not pass.");
   }
   const initialSpec = await readJsonFile<DeckSpec>(currentSpecPath);
   const maxRepairAttempts = options.maxRepairAttempts ?? initialSpec.openclaw.maxRepairAttempts;
 
   for (let attempt = 1; qa.report.status !== "passed" && attempt <= maxRepairAttempts; attempt += 1) {
+    summary.repairAttempts = attempt;
     if (!isRepairableQaFailure(qa.report)) {
       fail(`Deck QA failed with non-repairable prerequisite or render errors. See report: ${qa.reportPath}`);
     }
@@ -148,7 +231,11 @@ export async function runDeckFactory(options: {
       attempt
     });
     build = await buildDeck({ specPath: currentSpecPath, outDir: runDir });
+    setGate(summary, "render", "passed", `Rendered repaired deck with ${build.slideCount} slide(s).`, build.deckPath);
     qa = await qaDeck({ deckPath: build.deckPath, specPath: currentSpecPath, outDir: runDir, failOnError: false });
+    setGate(summary, "package-integrity", qa.report.renderStatus === "passed" ? "passed" : "failed", `Package integrity ${qa.report.renderStatus}.`, qa.reportPath);
+    setGate(summary, "rasterization", qa.report.rasterizationStatus === "passed" ? "passed" : "failed", `Rasterization ${qa.report.rasterizationStatus}.`, qa.reportPath);
+    setGate(summary, "deterministic-qa", qa.report.status === "passed" ? "passed" : "failed", `Deterministic QA ${qa.report.status}.`, qa.reportPath);
     if (qa.report.status === "passed") {
       qa = await reviewScreenshotsWithOpenClaw({
         specPath: currentSpecPath,
@@ -164,9 +251,29 @@ export async function runDeckFactory(options: {
   if (qa.report.status !== "passed") {
     fail(`Deck QA failed after ${maxRepairAttempts} repair attempt(s). See report: ${qa.reportPath}`);
   }
+  const finalCompliance = await validateDeckSpecTemplateCompliance({ specPath: currentSpecPath, outDir: runDir, writeReport: true });
+  if (finalCompliance.report.status === "failed") {
+    summary.blockerFindings.push(...finalCompliance.report.findings.filter((finding) => finding.severity === "BLOCKER"));
+    fail(`Final deck spec failed template compliance. See report: ${templateComplianceReportPath}`);
+  }
+  await writeSourceMap({ specPath: currentSpecPath, outPath: sourceMapPath });
+  setGate(summary, "repair", summary.repairAttempts > 0 ? "passed" : "skipped", summary.repairAttempts > 0 ? "Repair attempts completed successfully." : "No repair needed.");
+  setGate(summary, "handoff-artifacts", "passed", "Run summary, compliance, security, provenance, source map, QA, operations, and deck artifacts are written.");
+  summary.status = summary.repairAttempts > 0 ? "repaired" : "passed";
+  summary.completedAt = new Date().toISOString();
+  summary.outputDeckPath = build.deckPath;
+  summary.slideCount = build.slideCount;
+  summary.artifactPaths.deck = build.deckPath;
+  summary.artifactPaths.operations = build.operationsPath;
+  summary.artifactPaths.qaReport = qa.reportPath;
+  summary.artifactPaths.runSummary = runSummaryPath;
   const publish = shouldPublishAfterQa(qa.report.status, publishOptions.mode)
     ? await publishFinalDeck({ deckPath: build.deckPath, runDir, publishOptions })
     : { result: null };
+  if (publish.result) {
+    summary.artifactPaths.publishResult = path.join(runDir, "publish-result.json");
+  }
+  await writeRunSummary(runSummaryPath, summary);
   return {
     runDir,
     specPath: currentSpecPath,
@@ -176,8 +283,29 @@ export async function runDeckFactory(options: {
     capabilitiesPath,
     publishResultPath: publish.result ? path.join(runDir, "publish-result.json") : undefined,
     publishResult: publish.result ?? undefined,
-    publishWarning: publish.warning
+    publishWarning: publish.warning,
+    runSummaryPath,
+    templateComplianceReportPath,
+    templateSecurityReportPath,
+    runtimeProvenancePath,
+    sourceMapPath
   };
+  } catch (error) {
+    summary.status = "failed";
+    summary.completedAt = new Date().toISOString();
+    summary.blockerFindings.push({
+      id: "run-failed",
+      severity: "BLOCKER",
+      category: "run",
+      message: (error as Error).message
+    });
+    try {
+      await writeRunSummary(runSummaryPath, summary);
+    } catch {
+      // Preserve the original failure.
+    }
+    throw error;
+  }
 }
 
 async function publishFinalDeck(options: {
@@ -219,6 +347,7 @@ async function planSpecWithOpenClaw(options: {
   const template = await inspectTemplate(style.templateId);
   const templateProfile = await readJsonFile<TemplateProfile>(resolveFromCwd(template.cachedProfilePath));
   const slideLibraries = await Promise.all(style.slideLibraries.map((libraryId) => loadSlideLibrary(libraryId)));
+  const templateInstructions = await loadTemplateInstructions(options.styleId);
   const plannerAgent = options.plannerAgent ?? DEFAULT_OPENCLAW_AGENT;
 
   const plannerRunDir = path.join(options.runDir, "openclaw-planner");
@@ -235,6 +364,7 @@ async function planSpecWithOpenClaw(options: {
       style,
       template,
       templateProfile,
+      templateInstructions,
       slideLibraries,
       referenceDeck: options.referenceDeck,
       capabilities: {
@@ -247,6 +377,10 @@ async function planSpecWithOpenClaw(options: {
       "Use the requested style exactly.",
       "Prefer registered library slides when they directly satisfy requestedLibrarySlides or standard evergreen material.",
       "Use generated slides for the analytical body.",
+      templateInstructions
+        ? "Template instructions are present. Choose layouts only from the instruction catalog, include selectionReason on every slide, and fill content by placeholderId where possible."
+        : "No template instructions are configured; use the template profile and slide library metadata.",
+      "Respect placeholder writing contracts when they are provided.",
       "Do not invent citations or evidence. Preserve source evidence from the handoff.",
       "Return only the deck-spec JSON object."
     ].join("\n")
@@ -298,6 +432,7 @@ async function repairSpecWithOpenClaw(options: {
   await validateSchema("deck-spec", spec);
   const qaReport = await readJsonFile<unknown>(options.qaReportPath);
   await validateSchema("qa-report", qaReport);
+  const compliance = await validateDeckSpecTemplateCompliance({ specPath: options.specPath });
   const repairRunDir = path.join(options.runDir, "repairs", `attempt-${options.attempt}`);
   const result = await runOpenClawJsonWorker<unknown>({
     lane: "deck-factory-repair",
@@ -310,6 +445,8 @@ async function repairSpecWithOpenClaw(options: {
       attempt: options.attempt,
       deckSpec: spec,
       qaReport,
+      templateComplianceReport: compliance.report,
+      templateInstructions: compliance.instructions,
       capabilities: {
         computerUse: describeComputerUseCapability(options.computerUseMode)
       }
@@ -320,6 +457,7 @@ async function repairSpecWithOpenClaw(options: {
       "Return a complete replacement deck-spec JSON object.",
       "Keep the same style id and factual evidence.",
       "Prefer smaller text, simpler layouts, fewer bullets, or alternate registered layouts over inventing new content.",
+      "If template-compliance findings cite a placeholder contract, revise the deck spec first to satisfy that contract.",
       "If QA reports text-length-overflow, keep generated slide body text at or under the reported maxCharacters value.",
       "If QA reports long-bullet-overflow, rewrite each bullet to stay under the reported maxCharacters value.",
       "Do not claim that missing tools or renderer prerequisites are fixed by editing the spec."

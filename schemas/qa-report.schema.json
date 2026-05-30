@@ -15,6 +15,7 @@
     "fontSubstitutionWarnings",
     "contrastWarnings",
     "screenshotEvaluatorNotes",
+    "findings",
     "status"
   ],
   "additionalProperties": false,
@@ -31,6 +32,24 @@
     "fontSubstitutionWarnings": { "type": "array", "items": { "type": "string" } },
     "contrastWarnings": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
     "screenshotEvaluatorNotes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "category", "message"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "enum": ["BLOCKER", "MAJOR", "MINOR", "INFO"] },
+          "category": { "type": "string" },
+          "slideId": { "type": "string" },
+          "slideIndex": { "type": "number" },
+          "objectId": { "type": "string" },
+          "message": { "type": "string" },
+          "suggestedRepairIntent": { "type": "string" }
+        }
+      }
+    },
     "status": { "enum": ["passed", "failed"] }
   }
 }

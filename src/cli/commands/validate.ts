@@ -5,11 +5,17 @@ import { validateSchema, type SchemaName } from "../../schema/validate.js";
 const schemaChoices: SchemaName[] = [
   "deck-spec",
   "qa-report",
+  "run-summary",
   "skill-deck-handoff",
   "slide-library",
+  "source-map",
   "style-pack",
+  "template-compliance-report",
+  "template-instructions",
   "template-profile",
-  "template-registry"
+  "template-registry",
+  "template-security-report",
+  "runtime-provenance"
 ];
 
 export function registerValidateCommand(program: Command): void {

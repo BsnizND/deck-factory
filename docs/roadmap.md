@@ -74,6 +74,15 @@
 - Keep extracted template facts separate from editable guidance, likely through a linked `template-instructions.json` sidecar.
 - See [slide-template-instructions.md](slide-template-instructions.md) for the feature proposal.
 
+## Phase 9: Production Hardening
+
+- Add a canonical run contract with shared gates, statuses, and severity-coded findings.
+- Promote `template-instructions.json` to a first-class sidecar with CLI init/validate/inspect support.
+- Validate deck specs against template profiles, layout instructions, placeholder contracts, citations, and asset requirements.
+- Emit run evidence: `run-summary.json`, `template-compliance-report.json`, `template-security-report.json`, `runtime-provenance.json`, `source-map.json`, severity-coded `qa-report.json`, and screenshot contact sheets.
+- Add a golden-template gauntlet for instruction validation, placeholder compliance, security blockers, and evidence artifacts.
+- Keep artifact publishing out of this repo unless a narrow optional interface is added later.
+
 ## Sample Templates
 
 Deck Factory should ship sample templates before claiming v0 usability:

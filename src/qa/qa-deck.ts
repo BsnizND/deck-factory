@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import JSZip from "jszip";
 import { fail } from "../errors.js";
 import { inspectPowerPointPackage } from "../powerpoint/pptx-package.js";
+import type { SeverityFinding } from "../reports/severity.js";
 import { validateSchema } from "../schema/validate.js";
 import { assertReadableFile, ensureDir, readJsonFile, resolveFromCwd, writeJsonFile } from "../util/fs.js";
 
@@ -34,6 +35,7 @@ export interface QaReport {
   fontSubstitutionWarnings: string[];
   contrastWarnings: unknown[];
   screenshotEvaluatorNotes: unknown[];
+  findings: SeverityFinding[];
   status: "passed" | "failed";
 }
 
@@ -66,11 +68,32 @@ export async function qaDeck(options: {
     const slideCountMatch = slideCount === spec.slides.length;
     const packageIssues = await inspectPowerPointPackage(deckPath);
     const textOverflowFindings = deterministicTextOverflowFindings(spec);
+    const packageFindings = packageIssues.map((issue, index) => ({
+      id: `powerpoint-package-${issue.type}-${index + 1}`,
+      severity: "BLOCKER" as const,
+      category: "package-integrity",
+      message: issue.detail,
+      evidence: issue,
+      suggestedRepairIntent: "Repair or normalize the PowerPoint package before rerunning QA."
+    }));
+    const slideCountFindings = slideCountMatch
+      ? []
+      : [
+          {
+            id: "slide-count-mismatch",
+            severity: "BLOCKER" as const,
+            category: "render",
+            message: `Rendered deck has ${slideCount} slide(s), expected ${spec.slides.length}.`,
+            evidence: { expected: spec.slides.length, actual: slideCount },
+            suggestedRepairIntent: "Re-render from the validated deck spec and inspect operations.jsonl for skipped slides."
+          }
+        ];
     report = {
       ...report,
       renderStatus: packageIssues.length === 0 ? "passed" : "failed",
       slideCountMatch,
       textOverflowFindings,
+      findings: [...report.findings, ...packageFindings, ...slideCountFindings, ...textOverflowFindings],
       screenshotEvaluatorNotes: [
         ...(slideCountMatch
           ? []
@@ -106,6 +129,16 @@ export async function qaDeck(options: {
       report = {
         ...report,
         rasterizationStatus: "passed",
+        findings: [
+          ...report.findings,
+          {
+            id: "rasterization-passed",
+            severity: "INFO",
+            category: "rasterization",
+            message: `Rasterized ${screenshots.length} slide(s).`,
+            evidence: { screenshotsDir, slideImages: screenshots }
+          }
+        ],
         screenshotEvaluatorNotes: [
           ...report.screenshotEvaluatorNotes,
           {
@@ -116,6 +149,7 @@ export async function qaDeck(options: {
           }
         ]
       };
+      await writeContactSheet({ screenshots, outDir: screenshotsDir, magickCommand: rasterizer.magickCommand, report });
     }
   } catch (error) {
     report = failReport(report, {
@@ -270,12 +304,13 @@ function emptyReport(): QaReport {
     fontSubstitutionWarnings: [],
     contrastWarnings: [],
     screenshotEvaluatorNotes: [],
+    findings: [],
     status: "failed"
   };
 }
 
-function deterministicTextOverflowFindings(spec: DeckSpec): unknown[] {
-  const findings: unknown[] = [];
+function deterministicTextOverflowFindings(spec: DeckSpec): SeverityFinding[] {
+  const findings: SeverityFinding[] = [];
   for (const slide of spec.slides) {
     if (slide.source === "library") {
       continue;
@@ -284,23 +319,26 @@ function deterministicTextOverflowFindings(spec: DeckSpec): unknown[] {
     const limit = slide.layout === "title" ? 260 : 700;
     if (body.length > limit) {
       findings.push({
-        type: "text-length-overflow",
+        id: "text-length-overflow",
+        severity: "BLOCKER",
+        category: "text-overflow",
         slideId: slide.id ?? "unknown",
-        layout: slide.layout ?? "unknown",
-        characterCount: body.length,
-        maxCharacters: limit,
-        message: `Slide body content is too long for the v0 ${slide.layout ?? "unknown"} layout. Shorten, split, or move detail to notes.`
+        message: `Slide body content is too long for the v0 ${slide.layout ?? "unknown"} layout. Shorten, split, or move detail to notes.`,
+        evidence: { layout: slide.layout ?? "unknown", characterCount: body.length, maxCharacters: limit },
+        suggestedRepairIntent: "Shorten body copy, split the slide, or choose a roomier registered layout."
       });
     }
     for (const block of slide.content ?? []) {
       for (const item of block.items ?? []) {
         if (item.length > 180) {
           findings.push({
-            type: "long-bullet-overflow",
+            id: "long-bullet-overflow",
+            severity: "BLOCKER",
+            category: "text-overflow",
             slideId: slide.id ?? "unknown",
-            characterCount: item.length,
-            maxCharacters: 180,
-            message: "One bullet is too long for reliable PowerPoint layout. Shorten it or split it into multiple bullets."
+            message: "One bullet is too long for reliable PowerPoint layout. Shorten it or split it into multiple bullets.",
+            evidence: { characterCount: item.length, maxCharacters: 180 },
+            suggestedRepairIntent: "Rewrite the bullet to stay under the max character limit."
           });
         }
       }
@@ -318,6 +356,7 @@ function bodyTextForSlide(slide: DeckSpec["slides"][number]): string {
 
 function hasBlockingFindings(report: QaReport): boolean {
   return (
+    report.findings.some((finding) => finding.severity === "BLOCKER") ||
     report.missingAssets.length > 0 ||
     report.textOverflowFindings.length > 0 ||
     report.clippingFindings.length > 0 ||
@@ -328,10 +367,56 @@ function hasBlockingFindings(report: QaReport): boolean {
 }
 
 function failReport(report: QaReport, note: unknown): QaReport {
+  const record = note as Record<string, unknown>;
   return {
     ...report,
     rasterizationStatus: report.rasterizationStatus === "not-run" ? "failed" : report.rasterizationStatus,
     screenshotEvaluatorNotes: [...report.screenshotEvaluatorNotes, note],
+    findings: [
+      ...report.findings,
+      {
+        id: typeof record.type === "string" ? record.type : "qa-failure",
+        severity: "BLOCKER",
+        category: "qa",
+        message: typeof record.detail === "string" ? record.detail : "Deck QA failed.",
+        evidence: note,
+        suggestedRepairIntent: "Fix the prerequisite or render failure and rerun QA."
+      }
+    ],
     status: "failed"
   };
+}
+
+async function writeContactSheet(options: {
+  screenshots: string[];
+  outDir: string;
+  magickCommand: string;
+  report: QaReport;
+}): Promise<void> {
+  if (options.screenshots.length === 0) {
+    return;
+  }
+  const contactSheetPath = path.join(options.outDir, "contact-sheet.png");
+  try {
+    await execFileAsync(
+      options.magickCommand,
+      ["montage", ...options.screenshots, "-tile", "3x", "-geometry", "+12+12", contactSheetPath],
+      { timeout: 120_000, maxBuffer: 20 * 1024 * 1024 }
+    );
+    options.report.findings.push({
+      id: "contact-sheet-created",
+      severity: "INFO",
+      category: "rasterization",
+      message: "Created screenshot contact sheet.",
+      evidence: { path: contactSheetPath }
+    });
+  } catch (error) {
+    options.report.findings.push({
+      id: "contact-sheet-failed",
+      severity: "MINOR",
+      category: "rasterization",
+      message: `Could not create screenshot contact sheet: ${(error as Error).message}`,
+      suggestedRepairIntent: "Inspect individual slide screenshots instead."
+    });
+  }
 }

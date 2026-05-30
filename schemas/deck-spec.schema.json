@@ -47,11 +47,47 @@
           "id": { "type": "string" },
           "source": { "enum": ["generated", "library", "library-pattern"] },
           "layout": { "type": "string" },
+          "layoutId": { "type": "string" },
           "librarySlideId": { "type": "string" },
           "purpose": { "type": "string" },
+          "selectionReason": { "type": "string" },
           "title": { "type": "string" },
           "actionTitle": { "type": "string" },
-          "content": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "placeholderId": { "type": "string" },
+                "value": { "type": "string" },
+                "text": { "type": "string" },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      { "type": "string" },
+                      { "type": "object", "additionalProperties": true }
+                    ]
+                  }
+                },
+                "fields": { "type": "object", "additionalProperties": { "type": "string" } }
+              }
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "placeholderId": { "type": "string" },
+                "assetId": { "type": "string" },
+                "path": { "type": "string" },
+                "selectionReason": { "type": "string" }
+              }
+            }
+          },
           "speakerNotes": { "type": "string" },
           "citations": { "type": "array", "items": { "type": "string" } },
           "constraints": { "type": "object", "additionalProperties": true }

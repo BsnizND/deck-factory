@@ -6,6 +6,12 @@ export const SLIDE_LIBRARY_SCHEMA_VERSION = "deck-factory.slide-library.v1";
 export const DECK_SPEC_SCHEMA_VERSION = "deck-factory.deck-spec.v1";
 export const SKILL_HANDOFF_SCHEMA_VERSION = "deck-factory.skill-deck-handoff.v1";
 export const QA_REPORT_SCHEMA_VERSION = "deck-factory.qa-report.v1";
+export const TEMPLATE_INSTRUCTIONS_SCHEMA_VERSION = "deck-factory.template-instructions.v1";
+export const TEMPLATE_COMPLIANCE_REPORT_SCHEMA_VERSION = "deck-factory.template-compliance-report.v1";
+export const TEMPLATE_SECURITY_REPORT_SCHEMA_VERSION = "deck-factory.template-security-report.v1";
+export const RUNTIME_PROVENANCE_SCHEMA_VERSION = "deck-factory.runtime-provenance.v1";
+export const SOURCE_MAP_SCHEMA_VERSION = "deck-factory.source-map.v1";
+export const RUN_SUMMARY_SCHEMA_VERSION = "deck-factory.run-summary.v1";
 export const EXTRACTOR_VERSION = "deck-factory.extractor.v0";
 
 export const DEFAULT_REGISTRY_DIR = "registry";

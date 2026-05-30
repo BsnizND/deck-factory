@@ -48,6 +48,29 @@ npm run cli -- templates inspect snizco-agency
 
 Deck Factory writes a prep report under `registry/reports/`. If the template is not ready, fix the PowerPoint file and register again.
 
+Registration also runs a conservative template security scan. Macro-enabled files, external relationships, and unsafe package structures fail closed by default. Metadata, notes, comments, embedded media, and similar production concerns are recorded in a security report so they are not buried in logs.
+
+## Add Template Instructions
+
+Template instructions are optional, but they make a style much more useful to agents. They describe when to use each layout and how to write for each placeholder.
+
+Initialize a sidecar from the extracted template profile:
+
+```bash
+npm run cli -- templates instructions init <style-id>
+```
+
+Validate and inspect it:
+
+```bash
+npm run cli -- templates instructions validate <style-id>
+npm run cli -- templates instructions inspect <style-id>
+```
+
+The sidecar lives under `registry/template-instructions/` and is intentionally human-editable. Keep factual PowerPoint extraction in `template-profile.json`; put editorial guidance, voice, examples, placeholder contracts, and asset guidance in `template-instructions.json`.
+
+When instructions exist, Deck Factory validates generated deck specs against them. Required placeholders must be filled, unknown placeholders fail, item/character limits are checked, and required citations or assets become run gates.
+
 ## Prepare A Slide Library
 
 A slide library is optional but important for agency styles. It stores reusable slides such as:

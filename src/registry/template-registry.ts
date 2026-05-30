@@ -7,10 +7,11 @@ import {
 } from "../constants.js";
 import { fail } from "../errors.js";
 import { assertPowerPointFileRole, type PowerPointFileRole } from "../powerpoint/file-roles.js";
+import { scanTemplateSecurity } from "../powerpoint/template-security.js";
 import { validateSchema } from "../schema/validate.js";
 import { assertReadableFile, ensureDir, pathExists, readJsonFile, resolveFromCwd, toPortablePath, writeJsonFile, writeTextFile } from "../util/fs.js";
 import { fingerprintFile } from "./fingerprint.js";
-import { profilePath, templatePrepReportPath, templatesRegistryPath } from "./paths.js";
+import { profilePath, templatePrepReportPath, templateSecurityReportPath, templatesRegistryPath } from "./paths.js";
 import { extractTemplateProfile } from "../template/extract-template-profile.js";
 import type { TemplateProfile } from "../template/extract-template-profile.js";
 
@@ -75,9 +76,21 @@ export async function registerTemplate(options: {
     (await pathExists(resolveFromCwd(existing.cachedProfilePath)));
 
   if (canReuse) {
+    const securityReport = await scanTemplateSecurity({ templatePath: sourcePath });
+    if (securityReport.status === "failed") {
+      fail(`Template security scan failed for ${sourcePath}. See ${templateSecurityReportPath(options.templateId)}`);
+    }
     const profile = await readJsonFile<TemplateProfile>(resolveFromCwd(existing.cachedProfilePath));
     await writeTemplatePrepReport(prepReportPath, profile, existing);
     return existing;
+  }
+
+  const securityReport = await scanTemplateSecurity({
+    templatePath: sourcePath,
+    outPath: templateSecurityReportPath(options.templateId)
+  });
+  if (securityReport.status === "failed") {
+    fail(`Template security scan failed for ${sourcePath}. See ${templateSecurityReportPath(options.templateId)}`);
   }
 
   const profile = await extractTemplateProfile({

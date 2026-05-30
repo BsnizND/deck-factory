@@ -77,6 +77,7 @@ The workflow should support:
 ## Repo Map
 
 - [plan.md](plan.md): the end-to-end implementation plan.
+- [checklist.md](checklist.md): consolidated production-hardening implementation checklist.
 - [docs/idea.md](docs/idea.md): the fuller product concept.
 - [docs/architecture.md](docs/architecture.md): proposed system shape and module boundaries.
 - [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
@@ -93,12 +94,15 @@ npm install
 npm run generate:samples
 npm run cli -- doctor
 npm run cli -- templates register --id snizco-agency --name "Snizco Agency" --template-deck samples/snizco-agency/template.pptx
+npm run cli -- templates instructions init snizco-agency
+npm run cli -- templates instructions validate snizco-agency
 npm run cli -- libraries register --style snizco-agency --library-deck samples/snizco-agency/library.pptx
 npm run cli -- build --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
 npm run cli -- qa --deck artifacts/sample-build/deck.pptx --spec samples/snizco-agency/deck-spec.json --out artifacts/sample-build
 npm run cli -- run --style snizco-agency --spec samples/snizco-agency/overcrowded-deck-spec.json --out artifacts/overcrowded-repair --max-repair-attempts 1
 npm run check:skill
 npm run smoke:public
+npm run test:gauntlet
 ```
 
 The end-to-end entrypoint is:
@@ -136,7 +140,17 @@ If `--out` is omitted for a handoff run, Deck Factory writes to:
 artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx
 ```
 
-Each run also writes `capabilities.json`, which records whether Computer Use was disabled, optional, or externally required for that run.
+Each run also writes internal evidence artifacts in the run directory:
+
+- `run-summary.json`: canonical pass/fail state, gates, blocker findings, repair attempts, and artifact paths
+- `template-compliance-report.json`: layout, placeholder, citation, and asset compliance against registered template instructions when present
+- `template-security-report.json`: conservative scan of the selected template deck for external links, embedded objects/media, notes/comments, metadata, and macro indicators
+- `runtime-provenance.json`: OS, Node, Deck Factory version, renderer adapter, rasterizer tool versions, and template font context
+- `source-map.json`: slide-to-source map for layout choice, citations, assets, library slide ids, and selection reasons
+- `capabilities.json`: whether Computer Use was disabled, optional, or externally required for that run
+- `qa-report.json`: severity-coded QA findings plus compatibility fields
+
+Severity is shared across reports: `BLOCKER` fails the run, `MAJOR` is production-relevant, `MINOR` is a warning, and `INFO` is provenance/evidence.
 
 ## OpenClaw Skill
 
