@@ -134,6 +134,8 @@ Deck Factory writes `<out>/publish-result.json` and includes the normalized publ
 
 Equivalent environment variables are `DECK_FACTORY_PUBLISH`, `DECK_FACTORY_PUBLISH_REQUIRED`, `DECK_FACTORY_PUBLISH_TTL`, `DECK_FACTORY_PUBLISH_VISIBILITY`, and `DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND`.
 
+`DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND` may be either a single executable such as `artifact-gateway` or a command prefix such as `npm --prefix /path/to/tailnet-artifact-gateway run cli --`. This keeps deployment-specific routes, hosts, and data directories in configuration instead of Deck Factory code. If the command runs on a remote host over `ssh`, run Deck Factory where the final `deck.pptx` path is readable by that remote command, or use a deployment wrapper that copies the file before publishing.
+
 If `--out` is omitted for a handoff run, Deck Factory writes to:
 
 ```text

@@ -250,6 +250,17 @@ Do not create a new OpenClaw worker agent just to run Deck Factory. Pick an exis
 
 For schema-only planning and screenshot-review calls, prefer `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` so Deck Factory uses OpenClaw's `infer model run` surface instead of asking a conversational agent lane to behave like a JSON function. The outer workflow can still be launched by an existing execution lane such as a Jay worker.
 
+When publishing through Tailnet Artifact Gateway, keep the publisher as an explicit deployment override:
+
+```bash
+DECK_FACTORY_PUBLISH=tailnet-gateway \
+DECK_FACTORY_PUBLISH_REQUIRED=true \
+DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND="npm --prefix /path/to/tailnet-artifact-gateway run cli --" \
+npm run cli -- run --style <style-id> --handoff <handoff.json> --computer-use off
+```
+
+`DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND` accepts either one executable or a command prefix. The command must be able to read the final `deck.pptx` path; remote `ssh` publishers should run Deck Factory on the same host or use a deployment wrapper that copies the file first. Generated artifacts must use the private tailnet gateway route, not the ClawTV Funnel exception.
+
 The full smoke produces:
 
 ```text

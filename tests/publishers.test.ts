@@ -68,6 +68,36 @@ describe("artifact publishing", () => {
     ]);
   });
 
+  it("supports artifact-gateway command prefixes", async () => {
+    const dir = await tempDir();
+    const deckPath = path.join(dir, "deck.pptx");
+    const argsPath = path.join(dir, "prefixed-args.json");
+    await writeFile(deckPath, "fake pptx bytes");
+    const script = await fakeGatewayCommand(dir, argsPath, {
+      version: "tailnet-artifact-gateway.publish-result.v1",
+      artifactId: "art_PREFIX",
+      url: "https://gateway.test/d/art_PREFIX/deck.pptx?t=test",
+      filename: "deck.pptx",
+      visibility: "tailnet"
+    });
+
+    const published = await publishDeckArtifact({
+      deckPath,
+      runDir: dir,
+      publishOptions: {
+        mode: "tailnet-gateway",
+        required: true,
+        ttl: "2h",
+        visibility: "tailnet",
+        gatewayCommand: `${process.execPath} ${script}`
+      }
+    });
+
+    expect(published.result?.raw.artifactId).toBe("art_PREFIX");
+    const args = JSON.parse(await readFile(argsPath, "utf8"));
+    expect(args.slice(0, 5)).toEqual(["publish", "--file", deckPath, "--ttl", "2h"]);
+  });
+
   it("reports optional and required publisher failures without deleting the deck", async () => {
     const dir = await tempDir();
     const deckPath = path.join(dir, "deck.pptx");

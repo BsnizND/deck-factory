@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fail } from "../errors.js";
+import { buildCommandInvocation } from "../util/command.js";
 import { sha256File, toPortablePath, writeJsonFile } from "../util/fs.js";
 import { validateGatewayPublishResult, type ArtifactPublishOptions, type ArtifactPublishResult } from "./schemas.js";
 
@@ -28,7 +29,8 @@ export async function publishWithTailnetGateway(options: {
 
   let stdout: string;
   try {
-    ({ stdout } = await execFileAsync(options.publishOptions.gatewayCommand, argv, {
+    const invocation = buildCommandInvocation(options.publishOptions.gatewayCommand, argv);
+    ({ stdout } = await execFileAsync(invocation.command, invocation.args, {
       maxBuffer: 1024 * 1024,
       timeout: 120_000
     }));

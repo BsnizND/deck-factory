@@ -40,7 +40,9 @@ const execFileAsync = promisify(execFile);
 interface DeckSpec {
   style: { styleId?: string };
   openclaw: {
+    plannerAgent?: string;
     reviewerAgent: string;
+    polisherAgent?: string;
     maxRepairAttempts: number;
   };
 }
@@ -386,9 +388,23 @@ async function planSpecWithOpenClaw(options: {
     ].join("\n")
   });
 
+  const deckSpec = applyOpenClawAgentOverride(result.output as DeckSpec, plannerAgent);
+  await validateSchema("deck-spec", deckSpec);
   const runSpecPath = path.join(options.runDir, "deck-spec.json");
-  await writeJsonFile(runSpecPath, result.output);
+  await writeJsonFile(runSpecPath, deckSpec);
   return runSpecPath;
+}
+
+function applyOpenClawAgentOverride(spec: DeckSpec, agentId: string): DeckSpec {
+  return {
+    ...spec,
+    openclaw: {
+      ...spec.openclaw,
+      plannerAgent: agentId,
+      reviewerAgent: agentId,
+      polisherAgent: agentId
+    }
+  };
 }
 
 async function writePowerPointManifest(options: {
@@ -510,6 +526,7 @@ async function reviewScreenshotsWithOpenClaw(options: {
     runDir: reviewRunDir,
     openclawCommand: options.openclawCommand,
     filePaths: screenshotFiles,
+    allowTools: true,
     context: {
       version: "deck-factory.screenshot-review-context.v1",
       deckSpec: spec,
@@ -527,6 +544,7 @@ async function reviewScreenshotsWithOpenClaw(options: {
       "Review the rendered deck screenshots for visual quality.",
       computerUsePromptInstruction(options.computerUseMode),
       "The slide screenshots are attached as image files when the OpenClaw model runtime supports file inputs.",
+      "If you are running as an OpenClaw agent, you may use local file or image-inspection tools to inspect the mirrored screenshotsDir.",
       "Inspect the screenshot files in screenshotsDir if your runtime can access local files.",
       "Return a complete qa-report JSON object.",
       "Preserve deterministic failure findings from deterministicQaReport.",
