@@ -185,7 +185,7 @@ describe("golden template hardening gauntlet", () => {
           purpose: "Render left and right placeholders as columns.",
           title: "Column Placeholder",
           content: [
-            { placeholderId: "left", items: [{ label: "Company", text: "Left value" }] },
+            { placeholderId: "left", value: "Company", items: [{ label: "Company", text: "Left value" }] },
             { placeholderId: "right", items: [{ label: "Customers", text: "Right value" }] }
           ],
           citations: [],

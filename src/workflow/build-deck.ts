@@ -183,7 +183,7 @@ function generatedTextForSlide(slide: DeckSpecSlide): {
   }
   for (const block of slide.content ?? []) {
     if (block.placeholderId) {
-      const placeholderText = block.value ?? formatBlockText(block);
+      const placeholderText = formatBlockText({ ...block, text: block.value ?? block.text });
       if (placeholderText.trim()) {
         placeholders[block.placeholderId] = placeholderText;
         if (block.placeholderId === "left" || block.placeholderId.startsWith("left_") || block.placeholderId.startsWith("left-")) {

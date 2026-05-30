@@ -39,6 +39,11 @@ const execFileAsync = promisify(execFile);
 
 interface DeckSpec {
   style: { styleId?: string };
+  slides?: Array<{
+    source?: string;
+    layout?: string;
+    layoutId?: string;
+  }>;
   openclaw: {
     plannerAgent?: string;
     reviewerAgent: string;
@@ -398,6 +403,7 @@ async function planSpecWithOpenClaw(options: {
 function applyOpenClawAgentOverride(spec: DeckSpec, agentId: string): DeckSpec {
   return {
     ...spec,
+    slides: normalizeGeneratedSlideLayouts(spec.slides),
     openclaw: {
       ...spec.openclaw,
       plannerAgent: agentId,
@@ -405,6 +411,19 @@ function applyOpenClawAgentOverride(spec: DeckSpec, agentId: string): DeckSpec {
       polisherAgent: agentId
     }
   };
+}
+
+function normalizeGeneratedSlideLayouts(slides: DeckSpec["slides"]): DeckSpec["slides"] {
+  return slides?.map((slide) => {
+    if (slide.source !== "generated" || (slide.layout !== "two-column" && slide.layoutId !== "two-column")) {
+      return slide;
+    }
+    return {
+      ...slide,
+      layout: "content",
+      layoutId: "content"
+    };
+  });
 }
 
 async function writePowerPointManifest(options: {
