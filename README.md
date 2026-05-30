@@ -111,6 +111,25 @@ npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil
 
 Computer Use is intentionally separate from the core deck pipeline. Set `DECK_FACTORY_COMPUTER_USE=off` or pass `--computer-use off` when the runtime should not rely on desktop UI control. Use `optional` only when an orchestrating agent may run a separate post-build desktop check. Use `required` only when that external verification path is already proven; the Deck Factory CLI records the requirement but does not drive `@Computer` itself.
 
+## Optional Artifact Publishing
+
+Deck Factory can optionally publish the final deck through an external artifact publisher after render and QA pass. Publishing is disabled by default.
+
+For tailnet-local downloads, install and run `artifact-gateway`, expose it with Tailscale Serve, set `TAG_BASE_URL`, then run:
+
+```bash
+npm run cli -- run \
+  --style <style-id> \
+  --handoff <handoff.json> \
+  --computer-use off \
+  --publish tailnet-gateway \
+  --publish-ttl 24h
+```
+
+Deck Factory writes `<out>/publish-result.json` and includes the normalized publishing result in the CLI JSON. Use `--publish-required` only when the run should fail if post-QA publishing fails. The deck is preserved either way.
+
+Equivalent environment variables are `DECK_FACTORY_PUBLISH`, `DECK_FACTORY_PUBLISH_REQUIRED`, `DECK_FACTORY_PUBLISH_TTL`, `DECK_FACTORY_PUBLISH_VISIBILITY`, and `DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND`.
+
 If `--out` is omitted for a handoff run, Deck Factory writes to:
 
 ```text

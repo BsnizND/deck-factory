@@ -16,10 +16,15 @@ const requiredPhrases = [
   "## Running A Deck",
   "## Computer Use Mode",
   "## QA Gates",
+  "## Optional Artifact Publishing",
   "## Blockers",
   "## Final Response Contract",
+  "## Final Response Contract With Publishing",
   "npm run cli -- run",
   "--computer-use off",
+  "--publish tailnet-gateway",
+  "publish-result.json",
+  "Do not publish failed or QA-blocked decks",
   "artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx",
   "Do not re-extract a registered current template or slide library on every run",
   "Do not create or require a new OpenClaw worker agent",
@@ -30,7 +35,9 @@ const forbiddenPublicDefaults = [
   "snizserver",
   "ssh snizserver",
   "agent jay",
-  "--agent jay"
+  "--agent jay",
+  "Tailscale Funnel is default",
+  "publishing is required by default"
 ];
 
 const failures = [];
@@ -43,6 +50,12 @@ for (const phrase of forbiddenPublicDefaults) {
   if (skill.toLowerCase().includes(phrase.toLowerCase())) {
     failures.push(`forbidden public default in skill: ${phrase}`);
   }
+}
+if (/\/Users\//.test(skill)) {
+  failures.push("forbidden user-specific path in skill: /Users/");
+}
+if (/[a-z0-9-]+\.[a-z0-9-]+\.ts\.net/i.test(skill)) {
+  failures.push("forbidden hardcoded private Tailscale hostname in skill");
 }
 
 if (failures.length > 0) {

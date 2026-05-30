@@ -149,6 +149,40 @@ Internal evidence stays in the run directory:
 
 Return evidence only when the user asks or when explaining a failure.
 
+## Optional Artifact Publishing
+
+Deck Factory can optionally publish the final `deck.pptx` through an external artifact publisher after render and required QA gates pass.
+
+Default behavior:
+
+- Do not publish unless the user, local config, or calling workflow explicitly requests it.
+- Do not publish failed or QA-blocked decks.
+- Do not publish internal evidence unless the user asks for an approval package or evidence bundle.
+- Keep `deck.pptx` as the primary user-facing artifact.
+
+Tailnet Artifact Gateway mode:
+
+```bash
+npm run cli -- run \
+  --style <style-id> \
+  --handoff <handoff.json> \
+  --computer-use off \
+  --publish tailnet-gateway \
+  --publish-ttl 24h
+```
+
+When publishing succeeds, Deck Factory writes:
+
+```text
+<out>/publish-result.json
+```
+
+The final response should include the URL from `publish-result.json` and the local deck path.
+
+When publishing is optional and fails, still return the local deck path if the deck itself passed render and QA. Report the publishing failure clearly.
+
+When publishing is required and fails, report a blocker and preserve the local deck path for recovery.
+
 ## Blockers
 
 Stop and report the exact missing prerequisite when:
@@ -167,3 +201,34 @@ Stop and report the exact missing prerequisite when:
 ## Final Response Contract
 
 On success, return the final deck path and a short verification summary. On failure, return the blocker, the failing command or artifact path, and the next operator action. Do not bury the deck path in verbose logs.
+
+## Final Response Contract With Publishing
+
+If `<out>/publish-result.json` exists and contains a valid non-expired URL, include:
+
+```text
+Done: <download-url>
+Local deck: <out>/deck.pptx
+```
+
+If publishing was not enabled, include:
+
+```text
+Done: <out>/deck.pptx
+```
+
+If publishing was enabled but optional and failed, include:
+
+```text
+Done: <out>/deck.pptx
+Publishing did not complete: <reason>
+```
+
+If publishing was required and failed, stop with:
+
+```text
+BLOCKER: The deck was rendered and preserved at <out>/deck.pptx, but required artifact publishing failed.
+Reason: <reason>
+```
+
+Do not claim a downloadable URL exists unless `publish-result.json` was written and validated.

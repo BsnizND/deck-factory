@@ -25,6 +25,14 @@ export function registerRunCommand(program: Command): void {
       "Computer Use integration mode for this run: off, optional, or required. Defaults to DECK_FACTORY_COMPUTER_USE or off."
     )
     .option("--max-repair-attempts <number>", "Override deck-spec openclaw.maxRepairAttempts.")
+    .option("--publish <mode>", "Optional artifact publisher: none or tailnet-gateway. Defaults to DECK_FACTORY_PUBLISH or none.")
+    .option("--publish-required", "Fail if optional artifact publishing is enabled and the publish step fails.")
+    .option("--publish-ttl <duration>", "Artifact publishing TTL. Defaults to DECK_FACTORY_PUBLISH_TTL or 24h.")
+    .option("--publish-visibility <mode>", "Artifact publishing visibility: tailnet or local. Defaults to DECK_FACTORY_PUBLISH_VISIBILITY or tailnet.")
+    .option(
+      "--artifact-gateway-command <cmd>",
+      "Command used for tailnet-gateway publishing. Defaults to DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND or artifact-gateway."
+    )
     .action(
       async (options: {
         style: string;
@@ -36,6 +44,11 @@ export function registerRunCommand(program: Command): void {
         openclawCommand?: string;
         computerUse?: string;
         maxRepairAttempts?: string;
+        publish?: string;
+        publishRequired?: boolean;
+        publishTtl?: string;
+        publishVisibility?: string;
+        artifactGatewayCommand?: string;
       }) => {
         const maxRepairAttempts = parseOptionalNonNegativeInteger(options.maxRepairAttempts);
         const computerUseMode = resolveComputerUseMode(options.computerUse);
@@ -55,7 +68,12 @@ export function registerRunCommand(program: Command): void {
           plannerAgent: options.plannerAgent,
           openclawCommand: options.openclawCommand,
           maxRepairAttempts,
-          computerUseMode
+          computerUseMode,
+          publish: options.publish,
+          publishRequired: options.publishRequired,
+          publishTtl: options.publishTtl,
+          publishVisibility: options.publishVisibility,
+          artifactGatewayCommand: options.artifactGatewayCommand
         });
         console.log(JSON.stringify(result, null, 2));
       }

@@ -13,6 +13,13 @@ import { buildDeck } from "./build-deck.js";
 import { runOpenClawJsonWorker } from "../ai/openclaw-json-worker.js";
 import { fail } from "../errors.js";
 import { DEFAULT_OPENCLAW_AGENT, resolveOpenClawCommand, resolveSimpleSshTarget } from "../openclaw/command.js";
+import {
+  publishDeckArtifact,
+  resolveArtifactPublishOptions,
+  shouldPublishAfterQa,
+  type ArtifactPublishOptions,
+  type ArtifactPublishResult
+} from "../publishers/index.js";
 import { assertPowerPointFileRole, type PowerPointFileRoleRecord } from "../powerpoint/file-roles.js";
 import { inspectTemplate } from "../registry/template-registry.js";
 import { loadSlideLibrary } from "../registry/slide-library.js";
@@ -43,6 +50,9 @@ export interface RunDeckFactoryResult {
   operationsPath: string;
   qaReportPath: string;
   capabilitiesPath: string;
+  publishResultPath?: string;
+  publishResult?: ArtifactPublishResult;
+  publishWarning?: string;
 }
 
 interface RunPowerPointManifest {
@@ -66,6 +76,11 @@ export async function runDeckFactory(options: {
   maxRepairAttempts?: number;
   openclawCommand?: string;
   computerUseMode?: string;
+  publish?: string;
+  publishRequired?: boolean;
+  publishTtl?: string;
+  publishVisibility?: string;
+  artifactGatewayCommand?: string;
 }): Promise<RunDeckFactoryResult> {
   if (!options.handoffPath && !options.specPath) {
     fail("Provide either --handoff for OpenClaw planning or --spec for an already approved deck spec.");
@@ -76,6 +91,13 @@ export async function runDeckFactory(options: {
 
   const runDir = resolveFromCwd(options.outDir);
   const computerUseMode = resolveComputerUseMode(options.computerUseMode);
+  const publishOptions = resolveArtifactPublishOptions({
+    publish: options.publish,
+    publishRequired: options.publishRequired,
+    publishTtl: options.publishTtl,
+    publishVisibility: options.publishVisibility,
+    artifactGatewayCommand: options.artifactGatewayCommand
+  });
   const capabilitiesPath = await writeCapabilitiesManifest(runDir, computerUseMode);
   const referenceDeck = options.referenceDeckPath
     ? await assertPowerPointFileRole(options.referenceDeckPath, "reference-deck")
@@ -142,14 +164,28 @@ export async function runDeckFactory(options: {
   if (qa.report.status !== "passed") {
     fail(`Deck QA failed after ${maxRepairAttempts} repair attempt(s). See report: ${qa.reportPath}`);
   }
+  const publish = shouldPublishAfterQa(qa.report.status, publishOptions.mode)
+    ? await publishFinalDeck({ deckPath: build.deckPath, runDir, publishOptions })
+    : { result: null };
   return {
     runDir,
     specPath: currentSpecPath,
     deckPath: build.deckPath,
     operationsPath: build.operationsPath,
     qaReportPath: qa.reportPath,
-    capabilitiesPath
+    capabilitiesPath,
+    publishResultPath: publish.result ? path.join(runDir, "publish-result.json") : undefined,
+    publishResult: publish.result ?? undefined,
+    publishWarning: publish.warning
   };
+}
+
+async function publishFinalDeck(options: {
+  deckPath: string;
+  runDir: string;
+  publishOptions: ArtifactPublishOptions;
+}): Promise<{ result: ArtifactPublishResult | null; warning?: string }> {
+  return publishDeckArtifact(options);
 }
 
 async function prepareProvidedSpec(specPathInput: string, styleId: string, runDir: string): Promise<string> {
