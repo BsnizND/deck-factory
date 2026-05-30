@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import { afterEach, describe, expect, it } from "vitest";
 import { TEMPLATE_INSTRUCTIONS_SCHEMA_VERSION } from "../src/constants.js";
 import { scanTemplateSecurity } from "../src/powerpoint/template-security.js";
+import { buildDeck } from "../src/workflow/build-deck.js";
 import { templateInstructionsPath } from "../src/registry/paths.js";
 import { validateDeckSpecTemplateCompliance } from "../src/template/template-compliance.js";
 import { validateTemplateInstructions, type TemplateInstructions } from "../src/template/template-instructions.js";
@@ -122,6 +123,90 @@ describe("golden template hardening gauntlet", () => {
       version: "deck-factory.runtime-provenance.v1"
     });
   });
+
+  it("binds generated placeholderId content into rendered slides", async () => {
+    const tempDir = await makeTempDir("deck-factory-placeholder-render-");
+    const specPath = path.join(tempDir, "spec.json");
+    await writeJsonFile(specPath, {
+      version: "deck-factory.deck-spec.v1",
+      deck: {
+        title: "Placeholder Fixture",
+        audience: "executive",
+        objective: "Prove generated placeholders render.",
+        tone: "direct",
+        requestedLength: 2,
+        speakerNotes: false
+      },
+      template: {},
+      style: { styleId: "snizco-agency" },
+      librarySlides: [],
+      openclaw: {
+        plannerAgent: "deck-factory-planner",
+        reviewerAgent: "deck-factory-planner",
+        polisherAgent: "deck-factory-planner",
+        sessionPrefix: "gauntlet",
+        requiredModelRuntime: "openclaw",
+        maxRepairAttempts: 0
+      },
+      assets: [],
+      slides: [
+        {
+          id: "title",
+          source: "generated",
+          layout: "title",
+          purpose: "Render audience and subtitle placeholders.",
+          title: "Placeholder Fixture",
+          actionTitle: "Generated placeholders are bound",
+          content: [
+            { placeholderId: "subtitle", value: "Subtitle from placeholder value" },
+            { placeholderId: "context", value: "Context from placeholder value" }
+          ],
+          citations: [],
+          constraints: {}
+        },
+        {
+          id: "body",
+          source: "generated",
+          layout: "content",
+          purpose: "Render body placeholder from named fields.",
+          title: "Body Placeholder",
+          actionTitle: "Body placeholder resolves",
+          content: [
+            { placeholderId: "summary", value: "Summary value" },
+            { placeholderId: "finding", value: "Finding value" }
+          ],
+          citations: [],
+          constraints: {}
+        },
+        {
+          id: "columns",
+          source: "generated",
+          layout: "two-column",
+          purpose: "Render left and right placeholders as columns.",
+          title: "Column Placeholder",
+          content: [
+            { placeholderId: "left", items: [{ label: "Company", text: "Left value" }] },
+            { placeholderId: "right", items: [{ label: "Customers", text: "Right value" }] }
+          ],
+          citations: [],
+          constraints: {}
+        }
+      ],
+      constraints: {}
+    });
+
+    const result = await buildDeck({ specPath, outDir: tempDir });
+    const deckXml = await readDeckXml(result.deckPath);
+    expect(deckXml).toContain("executive");
+    expect(deckXml).toContain("Subtitle from placeholder value");
+    expect(deckXml).toContain("Summary value");
+    expect(deckXml).toContain("Company: Left value");
+    expect(deckXml).toContain("Customers: Right value");
+    expect(deckXml).not.toContain("{{audience}}");
+    expect(deckXml).not.toContain("{{body}}");
+    expect(deckXml).not.toContain("{{left_column}}");
+    expect(deckXml).not.toContain("{{right_column}}");
+  });
 });
 
 function validInstructions(): TemplateInstructions {
@@ -203,4 +288,11 @@ async function writeSecurityFixture(): Promise<string> {
   );
   await writeFile(deckPath, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
   return deckPath;
+}
+
+async function readDeckXml(deckPath: string): Promise<string> {
+  const zip = await JSZip.loadAsync(await import("node:fs/promises").then((fs) => fs.readFile(deckPath)));
+  const files = Object.keys(zip.files).filter((fileName) => fileName.startsWith("ppt/slides/slide") && fileName.endsWith(".xml"));
+  const xml = await Promise.all(files.map((fileName) => zip.file(fileName)!.async("string")));
+  return xml.join("\n");
 }

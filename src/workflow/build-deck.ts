@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const { Automizer, modify } = require("pptx-automizer");
 
 interface DeckSpec {
+  deck?: { audience?: string };
   style: { styleId?: string };
   slides: DeckSpecSlide[];
 }
@@ -24,8 +25,11 @@ interface DeckSpecSlide {
   layout: string;
   librarySlideId?: string;
   title: string;
+  actionTitle?: string;
   content: Array<{
     type?: string;
+    placeholderId?: string;
+    value?: string;
     heading?: string;
     text?: string;
     items?: Array<string | { label?: string; text?: string }>;
@@ -116,19 +120,28 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
     }
     pres = pres.addSlide("template", layout.sourceSlide, async (automizerSlide: any) => {
       const generatedText = generatedTextForSlide(slide);
-      const replacements = [
-        { replace: "{{title}}", by: { text: slide.title } },
-        { replace: "{{subtitle}}", by: { text: generatedText.body } },
-        { replace: "{{body}}", by: { text: generatedText.body } },
-        { replace: "{{left_column}}", by: { text: generatedText.leftColumn } },
-        { replace: "{{right_column}}", by: { text: generatedText.rightColumn } }
-      ];
+      const replacementValues: Record<string, string> = {
+        title: slide.title,
+        audience: spec.deck?.audience ?? "",
+        actionTitle: slide.actionTitle ?? slide.title,
+        action_title: slide.actionTitle ?? slide.title,
+        subtitle: generatedText.placeholders.subtitle ?? generatedText.body,
+        context: generatedText.placeholders.context ?? "",
+        body: generatedText.placeholders.body ?? generatedText.body,
+        left_column: generatedText.leftColumn,
+        right_column: generatedText.rightColumn,
+        ...generatedText.placeholders
+      };
+      const replacements = Object.entries(replacementValues).map(([replace, text]) => ({
+        replace: `{{${replace}}}`,
+        by: { text }
+      }));
       const elements = await automizerSlide.getAllTextElementIds();
       for (const element of elements) {
         automizerSlide.modifyElement(element, [modify.replaceText(replacements)]);
       }
       automizerSlide.modifyElement("df_title", [modify.setText(slide.title)]);
-      const body = generatedText.body;
+      const body = bodyTextForLayout(layout.id, generatedText, spec.deck?.audience);
       if (body) {
         const bodyElement = layout.id === "title" ? "df_subtitle" : "df_body";
         automizerSlide.modifyElement(bodyElement, [modify.setText(body)]);
@@ -143,10 +156,18 @@ export async function buildDeck(options: { specPath: string; outDir: string }): 
   return { deckPath, operationsPath, slideCount: spec.slides.length };
 }
 
-function generatedTextForSlide(slide: DeckSpecSlide): { body: string; leftColumn: string; rightColumn: string } {
+function generatedTextForSlide(slide: DeckSpecSlide): {
+  body: string;
+  leftColumn: string;
+  rightColumn: string;
+  placeholders: Record<string, string>;
+} {
   const bodyParts: string[] = [];
+  const leftParts: string[] = [];
+  const rightParts: string[] = [];
   let leftColumn = "";
   let rightColumn = "";
+  const placeholders: Record<string, string> = {};
   const columnBlocks = (slide.content ?? []).filter((block) => block.type === "column");
   if (columnBlocks.length > 0) {
     const formattedColumns = columnBlocks.map(formatColumn).filter(Boolean);
@@ -156,10 +177,33 @@ function generatedTextForSlide(slide: DeckSpecSlide): { body: string; leftColumn
     return {
       body: bodyParts.filter(Boolean).join("\n\n"),
       leftColumn,
-      rightColumn
+      rightColumn,
+      placeholders
     };
   }
   for (const block of slide.content ?? []) {
+    if (block.placeholderId) {
+      const placeholderText = block.value ?? formatBlockText(block);
+      if (placeholderText.trim()) {
+        placeholders[block.placeholderId] = placeholderText;
+        if (block.placeholderId === "left" || block.placeholderId.startsWith("left_") || block.placeholderId.startsWith("left-")) {
+          leftParts.push(placeholderText);
+          leftColumn = leftParts.join("\n");
+          placeholders.left_column = leftColumn;
+          continue;
+        }
+        if (block.placeholderId === "right" || block.placeholderId.startsWith("right_") || block.placeholderId.startsWith("right-")) {
+          rightParts.push(placeholderText);
+          rightColumn = rightParts.join("\n");
+          placeholders.right_column = rightColumn;
+          continue;
+        }
+        if (!["title", "headline", "subtitle", "context"].includes(block.placeholderId)) {
+          bodyParts.push(formatPlaceholderBlock(block.placeholderId, placeholderText));
+        }
+      }
+      continue;
+    }
     if (block.columns && block.columns.length > 0) {
       const formattedColumns = block.columns.map(formatColumn).filter(Boolean);
       if (!leftColumn && formattedColumns[0]) {
@@ -171,7 +215,7 @@ function generatedTextForSlide(slide: DeckSpecSlide): { body: string; leftColumn
       bodyParts.push(formattedColumns.join("\n\n"));
       continue;
     }
-    const text = block.text ?? formatItems(block.items) ?? "";
+    const text = formatBlockText(block);
     if (text.trim()) {
       bodyParts.push(text);
     }
@@ -179,13 +223,46 @@ function generatedTextForSlide(slide: DeckSpecSlide): { body: string; leftColumn
   return {
     body: bodyParts.filter(Boolean).join("\n\n"),
     leftColumn,
-    rightColumn
+    rightColumn,
+    placeholders
   };
+}
+
+function formatPlaceholderBlock(placeholderId: string, text: string): string {
+  if (placeholderId === "body") {
+    return text;
+  }
+  return text;
+}
+
+function bodyTextForLayout(
+  layoutId: string,
+  generatedText: ReturnType<typeof generatedTextForSlide>,
+  audience?: string
+): string {
+  if (layoutId !== "title") {
+    const columnBody = [generatedText.leftColumn, generatedText.rightColumn].filter((part) => part.trim()).join("\n\n");
+    return (generatedText.placeholders.body ?? generatedText.body) || columnBody;
+  }
+  return [
+    audience ? `Prepared for ${audience}` : "",
+    generatedText.placeholders.subtitle,
+    generatedText.placeholders.context,
+    generatedText.placeholders.body ?? generatedText.body
+  ]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join("\n");
 }
 
 function formatColumn(column: { heading?: string; items?: Array<string | { label?: string; text?: string }>; text?: string }): string {
   const parts = [column.heading, column.text, formatItems(column.items)].filter((part): part is string => Boolean(part?.trim()));
   return parts.join("\n");
+}
+
+function formatBlockText(block: { heading?: string; text?: string; items?: Array<string | { label?: string; text?: string }> }): string {
+  return [block.heading, block.text, formatItems(block.items)]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join("\n");
 }
 
 function formatItems(items?: Array<string | { label?: string; text?: string }>): string | undefined {
