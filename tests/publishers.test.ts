@@ -98,6 +98,39 @@ describe("artifact publishing", () => {
     expect(args.slice(0, 5)).toEqual(["publish", "--file", deckPath, "--ttl", "2h"]);
   });
 
+  it("accepts JSON output after command wrapper noise", async () => {
+    const dir = await tempDir();
+    const deckPath = path.join(dir, "deck.pptx");
+    const argsPath = path.join(dir, "noisy-args.json");
+    await writeFile(deckPath, "fake pptx bytes");
+    const command = await fakeGatewayCommand(
+      dir,
+      argsPath,
+      {
+        version: "tailnet-artifact-gateway.publish-result.v1",
+        artifactId: "art_NOISY",
+        url: "https://gateway.test/d/art_NOISY/deck.pptx?t=test",
+        filename: "deck.pptx",
+        visibility: "tailnet"
+      },
+      "> tailnet-artifact-gateway@0.1.0 cli\n> tsx src/cli/index.ts"
+    );
+
+    const published = await publishDeckArtifact({
+      deckPath,
+      runDir: dir,
+      publishOptions: {
+        mode: "tailnet-gateway",
+        required: true,
+        ttl: "1h",
+        visibility: "tailnet",
+        gatewayCommand: command
+      }
+    });
+
+    expect(published.result?.raw.artifactId).toBe("art_NOISY");
+  });
+
   it("reports optional and required publisher failures without deleting the deck", async () => {
     const dir = await tempDir();
     const deckPath = path.join(dir, "deck.pptx");
@@ -144,7 +177,7 @@ async function tempDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "deck-factory-publishers-"));
 }
 
-async function fakeGatewayCommand(dir: string, argsPath: string, output: unknown): Promise<string> {
+async function fakeGatewayCommand(dir: string, argsPath: string, output: unknown, prefixOutput = ""): Promise<string> {
   const command = path.join(dir, "fake-gateway.mjs");
   await writeFile(
     command,
@@ -152,6 +185,7 @@ async function fakeGatewayCommand(dir: string, argsPath: string, output: unknown
       "#!/usr/bin/env node",
       "import { writeFileSync } from 'node:fs';",
       `writeFileSync(${JSON.stringify(argsPath)}, JSON.stringify(process.argv.slice(2)));`,
+      ...(prefixOutput ? [`console.log(${JSON.stringify(prefixOutput)});`] : []),
       `console.log(${JSON.stringify(JSON.stringify(output))});`
     ].join("\n")
   );

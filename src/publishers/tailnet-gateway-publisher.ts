@@ -39,13 +39,7 @@ export async function publishWithTailnetGateway(options: {
     fail(`artifact-gateway publish failed: ${detail}`);
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`artifact-gateway returned invalid JSON: ${detail}`);
-  }
+  const parsed = parseGatewayJson(stdout);
   const raw = validateGatewayPublishResult(parsed);
   const result: ArtifactPublishResult = {
     version: "deck-factory.publish-result.v1",
@@ -74,4 +68,36 @@ export async function publishWithTailnetGateway(options: {
   };
   await writeJsonFile(path.join(options.runDir, "publish-result.json"), result);
   return result;
+}
+
+function parseGatewayJson(stdout: string): unknown {
+  try {
+    return JSON.parse(stdout);
+  } catch {
+    // npm run and similar wrappers can print script banners before the command's JSON output.
+  }
+
+  for (const line of stdout
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reverse()) {
+    try {
+      return JSON.parse(line);
+    } catch {
+      // Keep looking for the gateway payload.
+    }
+  }
+
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(stdout.slice(start, end + 1));
+    } catch {
+      // Fall through to the fail-closed error below.
+    }
+  }
+
+  fail("artifact-gateway returned invalid JSON: no JSON object found in stdout");
 }
