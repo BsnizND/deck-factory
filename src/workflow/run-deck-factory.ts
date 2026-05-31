@@ -12,7 +12,7 @@ import {
 import { buildDeck } from "./build-deck.js";
 import { runOpenClawJsonWorker } from "../ai/openclaw-json-worker.js";
 import { fail } from "../errors.js";
-import { DEFAULT_OPENCLAW_AGENT, resolveOpenClawCommand, resolveSimpleSshTarget } from "../openclaw/command.js";
+import { resolveOpenClawAgent, resolveOpenClawCommand, resolveSimpleSshTarget } from "../openclaw/command.js";
 import { writeProductQualityReport, type ProductQualityMode } from "../product/product-quality.js";
 import {
   publishDeckArtifact,
@@ -403,7 +403,7 @@ async function planSpecWithOpenClaw(options: {
   const templateProfile = await readJsonFile<TemplateProfile>(resolveFromCwd(template.cachedProfilePath));
   const slideLibraries = await Promise.all(style.slideLibraries.map((libraryId) => loadSlideLibrary(libraryId)));
   const templateInstructions = await loadTemplateInstructions(options.styleId);
-  const plannerAgent = options.plannerAgent ?? DEFAULT_OPENCLAW_AGENT;
+  const plannerAgent = resolveOpenClawAgent(options.plannerAgent);
 
   const plannerRunDir = path.join(options.runDir, "openclaw-planner");
   const result = await runOpenClawJsonWorker<unknown>({

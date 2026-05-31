@@ -112,7 +112,7 @@ The end-to-end entrypoint is:
 npm run cli -- run --style snizco-agency --handoff samples/5c-research/chick-fil-a-handoff.json --out artifacts/chick-fil-a-5c --computer-use off
 ```
 
-`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The public default OpenClaw command is local `openclaw`, and the CLI default planner identifier is `deck-factory-planner` for standalone setups. Production deployments should override with `DECK_FACTORY_OPENCLAW_COMMAND`, `DECK_FACTORY_OPENCLAW_AGENT`, `--openclaw-command`, or `--planner-agent` to use an approved existing execution lane. Set `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` when the deployment should use OpenClaw's tool-free `infer model run` path for schema-only JSON planning and screenshot review. Do not create a new OpenClaw worker agent just to run Deck Factory. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
+`run --handoff` uses the OpenClaw JSON worker path to produce `deck-spec.json` before rendering. The public default OpenClaw command is local `openclaw`, but Deck Factory no longer invents a planner agent id. Configure `DECK_FACTORY_OPENCLAW_AGENT` or pass `--planner-agent` with an approved existing execution lane before running handoffs. Set `DECK_FACTORY_OPENCLAW_COMMAND` or `--openclaw-command` when OpenClaw is reached through a remote command. Set `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` when the deployment should use OpenClaw's tool-free `infer model run` path for schema-only JSON planning and screenshot review. Do not create a new OpenClaw worker agent just to run Deck Factory. `run --spec` skips planning only when an approved deck spec already exists, then still renders and QA checks the deck.
 
 Computer Use is intentionally separate from the core deck pipeline. Set `DECK_FACTORY_COMPUTER_USE=off` or pass `--computer-use off` when the runtime should not rely on desktop UI control. Use `optional` only when an orchestrating agent may run a separate post-build desktop check. Use `required` only when that external verification path is already proven; the Deck Factory CLI records the requirement but does not drive `@Computer` itself.
 
@@ -191,6 +191,8 @@ DECK_FACTORY_OPENCLAW_AGENT=<existing-agent-id> \
 DECK_FACTORY_OPENCLAW_MODEL=<provider/model> \
 npm run smoke:public -- --with-openclaw
 ```
+
+For Brian's OpenClaw deployment, that existing lane is `jay-worker`.
 
 For deployments where OpenClaw is reached through a remote command, set `DECK_FACTORY_OPENCLAW_COMMAND` explicitly. The public docs and skill do not require a private host or personal agent id.
 

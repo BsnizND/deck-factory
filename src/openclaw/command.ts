@@ -14,7 +14,25 @@ export interface OpenClawSshTarget {
 }
 
 export const DEFAULT_OPENCLAW_COMMAND = "openclaw";
-export const DEFAULT_OPENCLAW_AGENT = process.env.DECK_FACTORY_OPENCLAW_AGENT?.trim() || "deck-factory-planner";
+const OPENCLAW_AGENT_ENV = "DECK_FACTORY_OPENCLAW_AGENT";
+
+export function configuredOpenClawAgent(): string | null {
+  return process.env[OPENCLAW_AGENT_ENV]?.trim() || null;
+}
+
+export function describeOpenClawAgentDefault(): string {
+  return configuredOpenClawAgent() ?? `none; set ${OPENCLAW_AGENT_ENV} or pass --planner-agent`;
+}
+
+export function resolveOpenClawAgent(input?: string): string {
+  const agent = input?.trim() || configuredOpenClawAgent();
+  if (!agent) {
+    throw new Error(
+      `OpenClaw agent cannot be empty. Set ${OPENCLAW_AGENT_ENV} or pass --planner-agent with an approved existing execution lane.`
+    );
+  }
+  return agent;
+}
 
 export function resolveOpenClawCommand(input?: string): OpenClawCommand {
   const display = input?.trim() || process.env.DECK_FACTORY_OPENCLAW_COMMAND?.trim() || DEFAULT_OPENCLAW_COMMAND;

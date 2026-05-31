@@ -59,9 +59,9 @@ describe("golden template hardening gauntlet", () => {
       style: { styleId: "snizco-agency" },
       librarySlides: [],
       openclaw: {
-        plannerAgent: "deck-factory-planner",
-        reviewerAgent: "deck-factory-planner",
-        polisherAgent: "deck-factory-planner",
+        plannerAgent: "approved-existing-worker",
+        reviewerAgent: "approved-existing-worker",
+        polisherAgent: "approved-existing-worker",
         sessionPrefix: "gauntlet",
         requiredModelRuntime: "openclaw",
         maxRepairAttempts: 0
@@ -141,9 +141,9 @@ describe("golden template hardening gauntlet", () => {
       style: { styleId: "snizco-agency" },
       librarySlides: [],
       openclaw: {
-        plannerAgent: "deck-factory-planner",
-        reviewerAgent: "deck-factory-planner",
-        polisherAgent: "deck-factory-planner",
+        plannerAgent: "approved-existing-worker",
+        reviewerAgent: "approved-existing-worker",
+        polisherAgent: "approved-existing-worker",
         sessionPrefix: "gauntlet",
         requiredModelRuntime: "openclaw",
         maxRepairAttempts: 0

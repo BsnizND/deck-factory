@@ -4,9 +4,10 @@ import { promisify } from "node:util";
 import type { Command } from "commander";
 import { resolveComputerUseMode, type ComputerUseMode } from "../../capabilities/computer-use.js";
 import {
-  DEFAULT_OPENCLAW_AGENT,
   DEFAULT_OPENCLAW_COMMAND,
   buildOpenClawInvocation,
+  configuredOpenClawAgent,
+  describeOpenClawAgentDefault,
   resolveOpenClawCommand,
   type OpenClawCommand
 } from "../../openclaw/command.js";
@@ -29,8 +30,7 @@ export function registerDoctorCommand(program: Command): void {
     .option("--json", "Print JSON output.")
     .option(
       "--worker-agent <id>",
-      `OpenClaw worker agent id to verify. Defaults to DECK_FACTORY_OPENCLAW_AGENT or ${DEFAULT_OPENCLAW_AGENT}.`,
-      DEFAULT_OPENCLAW_AGENT
+      `OpenClaw worker agent id to verify. Defaults to ${describeOpenClawAgentDefault()}.`
     )
     .option(
       "--openclaw-command <command>",
@@ -40,10 +40,10 @@ export function registerDoctorCommand(program: Command): void {
       "--computer-use <mode>",
       "Computer Use integration mode to report: off, optional, or required. Defaults to DECK_FACTORY_COMPUTER_USE or off."
     )
-    .action(async (options: { json?: boolean; workerAgent: string; openclawCommand?: string; computerUse?: string }) => {
+    .action(async (options: { json?: boolean; workerAgent?: string; openclawCommand?: string; computerUse?: string }) => {
       const computerUseMode = resolveComputerUseMode(options.computerUse);
       const checks = await runDoctorChecks({
-        workerAgent: options.workerAgent,
+        workerAgent: options.workerAgent?.trim() || configuredOpenClawAgent(),
         openclawCommand: resolveOpenClawCommand(options.openclawCommand),
         computerUseMode
       });
@@ -66,7 +66,7 @@ export function registerDoctorCommand(program: Command): void {
 }
 
 async function runDoctorChecks(options: {
-  workerAgent: string;
+  workerAgent: string | null;
   openclawCommand: OpenClawCommand;
   computerUseMode: ComputerUseMode;
 }): Promise<DoctorCheck[]> {
@@ -76,7 +76,16 @@ async function runDoctorChecks(options: {
   checks.push(packageVersionCheck("pptx-automizer", "Renderer: pptx-automizer"));
   checks.push(packageVersionCheck("pptxgenjs", "Renderer: PptxGenJS"));
   checks.push(await openClawCheck(options.openclawCommand));
-  checks.push(await openClawWorkerCheck(options.openclawCommand, options.workerAgent));
+  if (options.workerAgent) {
+    checks.push(await openClawWorkerCheck(options.openclawCommand, options.workerAgent));
+  } else {
+    checks.push({
+      name: "OpenClaw worker",
+      status: "missing",
+      detail:
+        "No agent configured. Set DECK_FACTORY_OPENCLAW_AGENT or pass --worker-agent with an approved existing execution lane."
+    });
+  }
   checks.push(computerUseCheck(options.computerUseMode));
   checks.push(...(await rasterizerChecks()));
   return checks;

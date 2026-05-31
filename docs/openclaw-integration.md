@@ -81,9 +81,9 @@ Use this resolution order:
 1. CLI flags, such as `--openclaw-command` and `--planner-agent`
 2. environment variables, such as `DECK_FACTORY_OPENCLAW_COMMAND` and `DECK_FACTORY_OPENCLAW_AGENT`
 3. local `openclaw` on `PATH`
-4. fail with a setup message if OpenClaw is unavailable
+4. fail with a setup message if OpenClaw or an approved existing agent is unavailable
 
-Brian-specific defaults can remain documented as local deployment notes, not as the public default.
+Deck Factory does not invent a planner-agent id. Brian-specific defaults can remain documented as local deployment notes, not as the public default; for Brian's current OpenClaw deployment, use `DECK_FACTORY_OPENCLAW_AGENT=jay-worker`.
 
 ## Computer Use Mode
 
@@ -212,7 +212,7 @@ Deck Factory owns template selection, slide selection, rendering, QA, and repair
 
 The public OpenClaw integration is complete when:
 
-1. a clean clone can run `npm install`, `npm run build`, `npm test`, and `npm run cli -- doctor --json`
+1. a clean clone can run `npm install`, `npm run build`, `npm test`, and `npm run cli -- doctor --json`, with `doctor` reporting exact setup blockers when no approved OpenClaw lane is configured
 2. the repo contains `openclaw/skills/deck-factory/SKILL.md`
 3. the skill passes a static package check
 4. the README explains how to install or reference the skill from OpenClaw
@@ -221,7 +221,7 @@ The public OpenClaw integration is complete when:
 7. an unknown style fails with a clear template-registration request
 8. a sample `skill-deck-handoff.json` produces a final `deck.pptx`
 9. the output path is deterministic and documented
-10. the public default does not assume Brian's `snizserver` or `jay`
+10. the public default does not assume Brian's `snizserver`, `jay`, or any fabricated Deck Factory agent id
 11. the default run path works with `--computer-use off`
 12. missing OpenClaw, model credentials, rasterizer tools, templates, assets, or QA evidence fail closed
 13. final handoff returns `deck.pptx` as the primary artifact
@@ -252,6 +252,8 @@ npm run smoke:public -- --with-openclaw
 ```
 
 Do not create a new OpenClaw worker agent just to run Deck Factory. Pick an existing lane that already has the filesystem, model, and tool permissions required by the deployment, then record that override outside the public defaults.
+
+For Brian's current two-agent OpenClaw topology, use `jay-worker` as that existing lane.
 
 For schema-only planning and screenshot-review calls, prefer `DECK_FACTORY_OPENCLAW_MODEL=<provider/model>` so Deck Factory uses OpenClaw's `infer model run` surface instead of asking a conversational agent lane to behave like a JSON function. The outer workflow can still be launched by an existing execution lane such as a Jay worker.
 

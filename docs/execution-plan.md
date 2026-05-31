@@ -83,7 +83,7 @@ Status: implemented.
 Delivered:
 
 - public default command behavior that prefers local `openclaw`
-- env var support for worker agent defaults, including `DECK_FACTORY_OPENCLAW_AGENT`
+- env var support for approved existing worker agent defaults, including `DECK_FACTORY_OPENCLAW_AGENT`
 - docs for `DECK_FACTORY_OPENCLAW_COMMAND`, `--openclaw-command`, `--planner-agent`, and related overrides
 - local deployment note for Brian-specific `ssh snizserver openclaw`
 - Computer Use mode support through `DECK_FACTORY_COMPUTER_USE` and `--computer-use`
@@ -91,6 +91,7 @@ Delivered:
 Acceptance:
 
 - public docs do not present `ssh snizserver openclaw` or `jay` as required defaults
+- Deck Factory no longer fabricates a `deck-factory-planner` default agent; handoffs require `DECK_FACTORY_OPENCLAW_AGENT` or `--planner-agent`
 - `doctor --json` reports OpenClaw readiness without mutating state
 - `doctor --json --computer-use off` reports that desktop UI control is disabled rather than required
 - missing OpenClaw fails with an exact prerequisite message

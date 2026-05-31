@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { resolveComputerUseMode } from "../../capabilities/computer-use.js";
 import { fail } from "../../errors.js";
-import { DEFAULT_OPENCLAW_AGENT, DEFAULT_OPENCLAW_COMMAND } from "../../openclaw/command.js";
+import { DEFAULT_OPENCLAW_COMMAND, describeOpenClawAgentDefault } from "../../openclaw/command.js";
 import { resolveProductQualityMode } from "../../product/product-quality.js";
 import { resolveStylePack } from "../../registry/style-pack.js";
 import { resolveRunOutputDirectory } from "../../workflow/output-path.js";
@@ -16,7 +16,7 @@ export function registerRunCommand(program: Command): void {
     .option("--handoff <path>", "Skill deck handoff JSON. Uses OpenClaw to plan deck-spec.json.")
     .option("--spec <path>", "Existing deck spec JSON. Skips OpenClaw planning but still validates, renders, and QA checks.")
     .option("--reference-deck <path>", "Optional .pptx source/reference deck. Read-only context; never treated as the template.")
-    .option("--planner-agent <agent>", `OpenClaw agent for deck planning. Defaults to ${DEFAULT_OPENCLAW_AGENT}.`)
+    .option("--planner-agent <agent>", `OpenClaw agent for deck planning. Defaults to ${describeOpenClawAgentDefault()}.`)
     .option(
       "--openclaw-command <command>",
       `Command used to invoke OpenClaw. Defaults to DECK_FACTORY_OPENCLAW_COMMAND or '${DEFAULT_OPENCLAW_COMMAND}'.`
