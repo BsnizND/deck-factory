@@ -56,6 +56,7 @@ export function createRunSummary(options: {
       "rasterization",
       "deterministic-qa",
       "agentic-review",
+      "product-quality",
       "repair",
       "final-deck",
       "handoff-artifacts"

@@ -68,3 +68,7 @@ Client-delivery acceptance requires:
 
 Until that gate exists and passes on a real client-style run, Deck Factory
 should be described as technically integrated but not product-accepted.
+
+Follow-up implemented: Deck Factory now emits `product-quality-report.json` and
+supports `--product-quality strict` / `DECK_FACTORY_PRODUCT_QUALITY=strict` so a
+technically valid but weak deck can fail before final handoff or publishing.

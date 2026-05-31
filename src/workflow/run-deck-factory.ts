@@ -13,6 +13,7 @@ import { buildDeck } from "./build-deck.js";
 import { runOpenClawJsonWorker } from "../ai/openclaw-json-worker.js";
 import { fail } from "../errors.js";
 import { DEFAULT_OPENCLAW_AGENT, resolveOpenClawCommand, resolveSimpleSshTarget } from "../openclaw/command.js";
+import { writeProductQualityReport, type ProductQualityMode } from "../product/product-quality.js";
 import {
   publishDeckArtifact,
   resolveArtifactPublishOptions,
@@ -98,6 +99,7 @@ export async function runDeckFactory(options: {
   publishRequired?: boolean;
   publishTtl?: string;
   publishVisibility?: string;
+  productQualityMode?: ProductQualityMode;
   artifactGatewayCommand?: string;
 }): Promise<RunDeckFactoryResult> {
   if (!options.handoffPath && !options.specPath) {
@@ -124,6 +126,7 @@ export async function runDeckFactory(options: {
     publishVisibility: options.publishVisibility,
     artifactGatewayCommand: options.artifactGatewayCommand
   });
+  const productQualityMode = options.productQualityMode ?? "warn";
   const capabilitiesPath = await writeCapabilitiesManifest(runDir, computerUseMode);
   summary.artifactPaths.capabilities = capabilitiesPath;
   const referenceDeck = options.referenceDeckPath
@@ -264,6 +267,24 @@ export async function runDeckFactory(options: {
     fail(`Final deck spec failed template compliance. See report: ${templateComplianceReportPath}`);
   }
   await writeSourceMap({ specPath: currentSpecPath, outPath: sourceMapPath });
+  const productQualityReportPath = path.join(runDir, "product-quality-report.json");
+  const productQualityReport = await writeProductQualityReport({
+    specPath: currentSpecPath,
+    outPath: productQualityReportPath,
+    mode: productQualityMode
+  });
+  summary.artifactPaths.productQualityReport = productQualityReportPath;
+  setGate(
+    summary,
+    "product-quality",
+    productQualityReport.status === "failed" ? "blocked" : productQualityReport.status === "skipped" ? "skipped" : "passed",
+    `Product-quality review ${productQualityReport.status}.`,
+    productQualityReportPath
+  );
+  if (productQualityReport.status === "failed") {
+    summary.blockerFindings.push(...productQualityReport.findings.filter((finding) => finding.severity === "BLOCKER"));
+    fail(`Product-quality review failed. See report: ${productQualityReportPath}`);
+  }
   setGate(summary, "repair", summary.repairAttempts > 0 ? "passed" : "skipped", summary.repairAttempts > 0 ? "Repair attempts completed successfully." : "No repair needed.");
   setGate(summary, "handoff-artifacts", "passed", "Run summary, compliance, security, provenance, source map, QA, operations, and deck artifacts are written.");
   summary.status = summary.repairAttempts > 0 ? "repaired" : "passed";

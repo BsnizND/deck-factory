@@ -4,6 +4,7 @@ import { validateSchema, type SchemaName } from "../../schema/validate.js";
 
 const schemaChoices: SchemaName[] = [
   "deck-spec",
+  "product-quality-report",
   "qa-report",
   "run-summary",
   "skill-deck-handoff",

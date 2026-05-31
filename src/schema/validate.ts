@@ -15,6 +15,7 @@ const addFormats = require("ajv-formats") as (ajv: unknown) => void;
 export type SchemaName =
   | "deck-spec"
   | "qa-report"
+  | "product-quality-report"
   | "run-summary"
   | "skill-deck-handoff"
   | "slide-library"
@@ -30,6 +31,7 @@ export type SchemaName =
 const schemaFileByName: Record<SchemaName, string> = {
   "deck-spec": "deck-spec.schema.json",
   "qa-report": "qa-report.schema.json",
+  "product-quality-report": "product-quality-report.schema.json",
   "run-summary": "run-summary.schema.json",
   "skill-deck-handoff": "skill-deck-handoff.schema.json",
   "slide-library": "slide-library.schema.json",

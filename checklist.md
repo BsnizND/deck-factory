@@ -107,7 +107,7 @@ This checklist consolidates `docs/deck-factory-hardening-slash-goal.md`, `docs/r
 - [x] Run a human/product review on the `chick-fil-a-5c-publish-smoke` package.
 - [x] Record that the smoke deck is technically valid but not client-delivery
   ready; see `docs/client-delivery-review-2026-05-31.md`.
-- [ ] Add a first-class product-quality acceptance gate that can fail decks
+- [x] Add a first-class product-quality acceptance gate that can fail decks
   that pass deterministic QA but lack story depth, source lineage, client-ready
   narrative, speaker-note compliance, or final package polish.
 - [ ] Produce a fresh real client-style deck package that passes render QA,

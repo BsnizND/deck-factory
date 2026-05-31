@@ -182,6 +182,7 @@ Internal evidence remains in the same run directory:
 - `capabilities.json`
 - `operations.jsonl`
 - `qa-report.json`
+- `product-quality-report.json`
 - `screenshots/`
 - `openclaw-*/*`
 

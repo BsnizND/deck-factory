@@ -150,9 +150,14 @@ Each run also writes internal evidence artifacts in the run directory:
 - `runtime-provenance.json`: OS, Node, Deck Factory version, renderer adapter, rasterizer tool versions, and template font context
 - `source-map.json`: slide-to-source map for layout choice, citations, assets, library slide ids, and selection reasons
 - `capabilities.json`: whether Computer Use was disabled, optional, or externally required for that run
+- `product-quality-report.json`: product acceptance findings for source depth, fixture caveats, citations, speaker notes, and client-delivery polish
 - `qa-report.json`: severity-coded QA findings plus compatibility fields
 
 Severity is shared across reports: `BLOCKER` fails the run, `MAJOR` is production-relevant, `MINOR` is a warning, and `INFO` is provenance/evidence.
+
+Product-quality review defaults to warning mode. Use `--product-quality strict`
+or `DECK_FACTORY_PRODUCT_QUALITY=strict` for production/client delivery so a
+technically renderable but shallow deck fails before final handoff or publishing.
 
 ## OpenClaw Skill
 

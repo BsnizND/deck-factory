@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { resolveComputerUseMode } from "../../capabilities/computer-use.js";
 import { fail } from "../../errors.js";
 import { DEFAULT_OPENCLAW_AGENT, DEFAULT_OPENCLAW_COMMAND } from "../../openclaw/command.js";
+import { resolveProductQualityMode } from "../../product/product-quality.js";
 import { resolveStylePack } from "../../registry/style-pack.js";
 import { resolveRunOutputDirectory } from "../../workflow/output-path.js";
 import { runDeckFactory } from "../../workflow/run-deck-factory.js";
@@ -30,6 +31,10 @@ export function registerRunCommand(program: Command): void {
     .option("--publish-ttl <duration>", "Artifact publishing TTL. Defaults to DECK_FACTORY_PUBLISH_TTL or 24h.")
     .option("--publish-visibility <mode>", "Artifact publishing visibility: tailnet or local. Defaults to DECK_FACTORY_PUBLISH_VISIBILITY or tailnet.")
     .option(
+      "--product-quality <mode>",
+      "Product-quality review mode: off, warn, or strict. Defaults to DECK_FACTORY_PRODUCT_QUALITY or warn."
+    )
+    .option(
       "--artifact-gateway-command <cmd>",
       "Command used for tailnet-gateway publishing. Defaults to DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND or artifact-gateway."
     )
@@ -48,10 +53,12 @@ export function registerRunCommand(program: Command): void {
         publishRequired?: boolean;
         publishTtl?: string;
         publishVisibility?: string;
+        productQuality?: string;
         artifactGatewayCommand?: string;
       }) => {
         const maxRepairAttempts = parseOptionalNonNegativeInteger(options.maxRepairAttempts);
         const computerUseMode = resolveComputerUseMode(options.computerUse);
+        const productQualityMode = resolveProductQualityMode(options.productQuality);
         const style = await resolveStylePack(options.style);
         const outDir = await resolveRunOutputDirectory({
           outDir: options.out,
@@ -73,6 +80,7 @@ export function registerRunCommand(program: Command): void {
           publishRequired: options.publishRequired,
           publishTtl: options.publishTtl,
           publishVisibility: options.publishVisibility,
+          productQualityMode,
           artifactGatewayCommand: options.artifactGatewayCommand
         });
         console.log(JSON.stringify(result, null, 2));

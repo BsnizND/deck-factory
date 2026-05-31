@@ -142,6 +142,7 @@ Do not call a deck final until Deck Factory has:
 - passed PowerPoint package-integrity checks
 - rasterized every slide to PNG
 - produced a schema-valid severity-coded `qa-report.json`
+- produced `product-quality-report.json`
 - written runtime provenance and source-map artifacts
 - completed OpenClaw screenshot review when the run path invokes it
 - completed configured repair attempts or failed with a concrete blocker
@@ -161,6 +162,7 @@ Internal evidence stays in the run directory:
 - `template-security-report.json`
 - `runtime-provenance.json`
 - `source-map.json`
+- `product-quality-report.json`
 - `operations.jsonl`
 - `qa-report.json`
 - `screenshots/`
@@ -172,10 +174,15 @@ Return evidence only when the user asks or when explaining a failure.
 
 Deck Factory can optionally publish the final `deck.pptx` through an external artifact publisher after render and required QA gates pass.
 
+Use `--product-quality strict` or `DECK_FACTORY_PRODUCT_QUALITY=strict` for
+client-delivery runs. Do not publish a deck that failed strict product-quality
+review, even if render, deterministic QA, and screenshot review passed.
+
 Default behavior:
 
 - Do not publish unless the user, local config, or calling workflow explicitly requests it.
 - Do not publish failed or QA-blocked decks.
+- Do not publish product-quality-blocked decks.
 - Do not publish internal evidence unless the user asks for an approval package or evidence bundle.
 - Keep `deck.pptx` as the primary user-facing artifact.
 
