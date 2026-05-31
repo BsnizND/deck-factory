@@ -143,6 +143,7 @@ Do not call a deck final until Deck Factory has:
 - rasterized every slide to PNG
 - produced a schema-valid severity-coded `qa-report.json`
 - produced `product-quality-report.json`
+- produced `package-manifest.json`
 - written runtime provenance and source-map artifacts
 - completed OpenClaw screenshot review when the run path invokes it
 - completed configured repair attempts or failed with a concrete blocker
@@ -157,6 +158,8 @@ Internal evidence stays in the run directory:
 
 - `deck-spec.json`
 - `capabilities.json`
+- `package-manifest.json`
+- `powerpoint-files.json`
 - `run-summary.json`
 - `template-compliance-report.json`
 - `template-security-report.json`
@@ -168,7 +171,7 @@ Internal evidence stays in the run directory:
 - `screenshots/`
 - `openclaw-*/*`
 
-Return evidence only when the user asks or when explaining a failure.
+Return evidence only when the user asks or when explaining a failure. Use `package-manifest.json` to distinguish the default `deck.pptx` handoff from internal evidence.
 
 ## Optional Artifact Publishing
 
@@ -185,6 +188,7 @@ Default behavior:
 - Do not publish product-quality-blocked decks.
 - Do not publish internal evidence unless the user asks for an approval package or evidence bundle.
 - Keep `deck.pptx` as the primary user-facing artifact.
+- Use `package-manifest.json` as the retention and handoff boundary.
 
 Tailnet Artifact Gateway mode:
 
@@ -201,9 +205,10 @@ When publishing succeeds, Deck Factory writes:
 
 ```text
 <out>/publish-result.json
+<out>/package-manifest.json
 ```
 
-The final response should include the URL from `publish-result.json` and the local deck path.
+The final response should include the URL from `publish-result.json` and the local deck path. Do not copy tokenized delivery URLs into `package-manifest.json`, approval evidence, or chat transcripts beyond the final delivery response.
 
 When publishing is optional and fails, still return the local deck path if the deck itself passed render and QA. Report the publishing failure clearly.
 
@@ -227,7 +232,7 @@ Stop and report the exact missing prerequisite when:
 
 ## Final Response Contract
 
-On success, return the final deck path and a short verification summary. Include the status from `run-summary.json`, the QA status, and any blocker count. On failure, return the blocker, the failing command or artifact path, and the next operator action. Do not bury the deck path in verbose logs.
+On success, return the final deck path and a short verification summary. Include the status from `run-summary.json`, the QA status, the presence of `package-manifest.json`, and any blocker count. On failure, return the blocker, the failing command or artifact path, and the next operator action. Do not bury the deck path in verbose logs.
 
 ## Final Response Contract With Publishing
 

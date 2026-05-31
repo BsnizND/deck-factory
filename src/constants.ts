@@ -13,6 +13,7 @@ export const RUNTIME_PROVENANCE_SCHEMA_VERSION = "deck-factory.runtime-provenanc
 export const SOURCE_MAP_SCHEMA_VERSION = "deck-factory.source-map.v1";
 export const RUN_SUMMARY_SCHEMA_VERSION = "deck-factory.run-summary.v1";
 export const PRODUCT_QUALITY_REPORT_SCHEMA_VERSION = "deck-factory.product-quality-report.v1";
+export const PACKAGE_MANIFEST_SCHEMA_VERSION = "deck-factory.package-manifest.v1";
 export const EXTRACTOR_VERSION = "deck-factory.extractor.v0";
 
 export const DEFAULT_REGISTRY_DIR = "registry";

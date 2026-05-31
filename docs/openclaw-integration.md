@@ -12,6 +12,7 @@ Deck Factory is a working local CLI and OpenClaw-backed workflow from source:
 - the renderer produces editable `deck.pptx`
 - QA rasterizes slides, validates package integrity, and can ask OpenClaw for screenshot review and repair
 - Computer Use is configurable and is off by default for deck generation
+- successful runs write `package-manifest.json` to separate the default client deck from internal evidence and delivery-control metadata
 
 The repo now ships the agent-facing package under `openclaw/skills/deck-factory/`. The skill tells an OpenClaw agent how to discover styles, register templates, consume upstream skill handoffs, choose output paths, run QA, and return the final deck.
 
@@ -180,6 +181,8 @@ Internal evidence remains in the same run directory:
 
 - `deck-spec.json`
 - `capabilities.json`
+- `package-manifest.json`
+- `powerpoint-files.json`
 - `operations.jsonl`
 - `qa-report.json`
 - `product-quality-report.json`
@@ -222,6 +225,7 @@ The public OpenClaw integration is complete when:
 11. the default run path works with `--computer-use off`
 12. missing OpenClaw, model credentials, rasterizer tools, templates, assets, or QA evidence fail closed
 13. final handoff returns `deck.pptx` as the primary artifact
+14. successful runs validate `package-manifest.json` and use it as the retention boundary between client deliverables and internal evidence
 
 ## Smoke Tests
 
@@ -261,6 +265,8 @@ npm run cli -- run --style <style-id> --handoff <handoff.json> --computer-use of
 ```
 
 `DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND` accepts either one executable or a command prefix. The command must be able to read the final `deck.pptx` path; remote `ssh` publishers should run Deck Factory on the same host or use a deployment wrapper that copies the file first. Generated artifacts must use the private tailnet gateway route, not the ClawTV Funnel exception.
+
+Every successful run writes `<run-directory>/package-manifest.json`. The manifest records `deck.pptx` as the only default handoff artifact, classifies `publish-result.json` as delivery metadata when publishing is enabled, and keeps QA/provenance/source/log artifacts internal unless the user asks for an approval package. It records safe delivery visibility and expiry metadata, but does not duplicate the tokenized download URL from `publish-result.json`.
 
 The full smoke produces:
 

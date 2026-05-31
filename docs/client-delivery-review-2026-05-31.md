@@ -72,3 +72,8 @@ should be described as technically integrated but not product-accepted.
 Follow-up implemented: Deck Factory now emits `product-quality-report.json` and
 supports `--product-quality strict` / `DECK_FACTORY_PRODUCT_QUALITY=strict` so a
 technically valid but weak deck can fail before final handoff or publishing.
+
+Additional follow-up implemented: successful runs now emit
+`package-manifest.json`, backed by `docs/artifact-retention.md`, so the final
+deck, delivery-control metadata, QA evidence, provenance, logs, and screenshots
+have explicit handoff and retention roles.

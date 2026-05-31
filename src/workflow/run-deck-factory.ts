@@ -23,6 +23,7 @@ import {
 } from "../publishers/index.js";
 import { assertPowerPointFileRole, type PowerPointFileRoleRecord } from "../powerpoint/file-roles.js";
 import { scanTemplateSecurity } from "../powerpoint/template-security.js";
+import { writePackageManifest } from "../reports/package-manifest.js";
 import { writeRuntimeProvenance } from "../reports/runtime-provenance.js";
 import { createRunSummary, setGate, writeRunSummary } from "../reports/run-summary.js";
 import { writeSourceMap } from "../reports/source-map.js";
@@ -64,6 +65,8 @@ export interface RunDeckFactoryResult {
   operationsPath: string;
   qaReportPath: string;
   capabilitiesPath: string;
+  powerPointFilesPath: string;
+  packageManifestPath: string;
   publishResultPath?: string;
   publishResult?: ArtifactPublishResult;
   publishWarning?: string;
@@ -132,11 +135,12 @@ export async function runDeckFactory(options: {
   const referenceDeck = options.referenceDeckPath
     ? await assertPowerPointFileRole(options.referenceDeckPath, "reference-deck")
     : null;
-  await writePowerPointManifest({
+  const powerPointFilesPath = await writePowerPointManifest({
     runDir,
     inputs: referenceDeck ? [referenceDeck] : [],
     outputPath: path.join(runDir, "deck.pptx")
   });
+  summary.artifactPaths.powerpointFiles = powerPointFilesPath;
   setGate(summary, "input", "passed", options.handoffPath ? "Validated handoff input path is configured." : "Validated supplied deck spec path is configured.");
 
   const style = await resolveStylePack(options.styleId);
@@ -286,7 +290,6 @@ export async function runDeckFactory(options: {
     fail(`Product-quality review failed. See report: ${productQualityReportPath}`);
   }
   setGate(summary, "repair", summary.repairAttempts > 0 ? "passed" : "skipped", summary.repairAttempts > 0 ? "Repair attempts completed successfully." : "No repair needed.");
-  setGate(summary, "handoff-artifacts", "passed", "Run summary, compliance, security, provenance, source map, QA, operations, and deck artifacts are written.");
   summary.status = summary.repairAttempts > 0 ? "repaired" : "passed";
   summary.completedAt = new Date().toISOString();
   summary.outputDeckPath = build.deckPath;
@@ -301,7 +304,29 @@ export async function runDeckFactory(options: {
   if (publish.result) {
     summary.artifactPaths.publishResult = path.join(runDir, "publish-result.json");
   }
+  const packageManifestPath = path.join(runDir, "package-manifest.json");
+  summary.artifactPaths.packageManifest = packageManifestPath;
+  setGate(summary, "handoff-artifacts", "passed", "Deck, package manifest, run summary, compliance, security, provenance, source map, QA, operations, and delivery metadata are written.");
   await writeRunSummary(runSummaryPath, summary);
+  await writePackageManifest({
+    outPath: packageManifestPath,
+    runDir,
+    deckPath: build.deckPath,
+    runSummaryPath,
+    specPath: currentSpecPath,
+    operationsPath: build.operationsPath,
+    qaReportPath: qa.reportPath,
+    screenshotsDir: qa.screenshotsDir,
+    capabilitiesPath,
+    powerPointFilesPath,
+    templateComplianceReportPath,
+    templateSecurityReportPath,
+    runtimeProvenancePath,
+    sourceMapPath,
+    productQualityReportPath,
+    publishResultPath: publish.result ? path.join(runDir, "publish-result.json") : undefined,
+    publishResult: publish.result
+  });
   return {
     runDir,
     specPath: currentSpecPath,
@@ -309,6 +334,8 @@ export async function runDeckFactory(options: {
     operationsPath: build.operationsPath,
     qaReportPath: qa.reportPath,
     capabilitiesPath,
+    powerPointFilesPath,
+    packageManifestPath,
     publishResultPath: publish.result ? path.join(runDir, "publish-result.json") : undefined,
     publishResult: publish.result ?? undefined,
     publishWarning: publish.warning,
@@ -451,8 +478,9 @@ async function writePowerPointManifest(options: {
   runDir: string;
   inputs: PowerPointFileRoleRecord[];
   outputPath: string;
-}): Promise<void> {
+}): Promise<string> {
   const output = await assertPowerPointFileRole(options.outputPath, "generated-output");
+  const manifestPath = path.join(options.runDir, "powerpoint-files.json");
   const manifest: RunPowerPointManifest = {
     version: "deck-factory.powerpoint-file-roles.v1",
     inputs: options.inputs.map(({ role, portablePath, extension, status }) => ({ role, portablePath, extension, status })),
@@ -463,7 +491,8 @@ async function writePowerPointManifest(options: {
       status: output.status
     }
   };
-  await writeJsonFile(path.join(options.runDir, "powerpoint-files.json"), manifest);
+  await writeJsonFile(manifestPath, manifest);
+  return manifestPath;
 }
 
 async function writeCapabilitiesManifest(runDir: string, computerUseMode: ComputerUseMode): Promise<string> {

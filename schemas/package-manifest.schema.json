@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deck-factory.package-manifest.v1",
+  "type": "object",
+  "required": ["version", "createdAt", "runDir", "handoffPolicy", "retentionPolicy", "artifacts"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "runDir": { "type": "string" },
+    "handoffPolicy": {
+      "type": "object",
+      "required": ["defaultHandoff", "approvalPackageRequiresExplicitRequest", "publicRoutesAllowed", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "defaultHandoff": { "enum": ["deck-only"] },
+        "approvalPackageRequiresExplicitRequest": { "type": "boolean" },
+        "publicRoutesAllowed": { "type": "boolean" },
+        "publishedDeliveryVisibility": { "type": ["string", "null"] },
+        "publishedDeliveryExpiresAt": { "type": ["string", "null"] },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "retentionPolicy": {
+      "type": "object",
+      "required": ["finalDeck", "approvalEvidence", "publishedDelivery", "smokeRuns"],
+      "additionalProperties": false,
+      "properties": {
+        "finalDeck": { "type": "string" },
+        "approvalEvidence": { "type": "string" },
+        "publishedDelivery": { "type": "string" },
+        "smokeRuns": { "type": "string" }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind", "role", "retentionClass", "includedInDefaultHandoff", "required", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "kind": { "enum": ["file", "directory"] },
+          "role": {
+            "enum": [
+              "primary-deck",
+              "delivery-metadata",
+              "internal-evidence",
+              "internal-log"
+            ]
+          },
+          "retentionClass": {
+            "enum": [
+              "client-deliverable",
+              "delivery-control",
+              "approval-evidence",
+              "operational-log"
+            ]
+          },
+          "includedInDefaultHandoff": { "type": "boolean" },
+          "required": { "type": "boolean" },
+          "description": { "type": "string" },
+          "bytes": { "type": "number" },
+          "sha256": { "type": "string" }
+        }
+      }
+    }
+  }
+}

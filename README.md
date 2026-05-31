@@ -83,6 +83,7 @@ The workflow should support:
 - [docs/decisions.md](docs/decisions.md): v0 architecture decisions.
 - [docs/execution-plan.md](docs/execution-plan.md): ordered remaining work to finish the project.
 - [docs/openclaw-integration.md](docs/openclaw-integration.md): the plan for making Deck Factory portable for OpenClaw users.
+- [docs/artifact-retention.md](docs/artifact-retention.md): package-manifest and retention policy for client handoff versus internal evidence.
 - [docs/roadmap.md](docs/roadmap.md): staged build plan.
 - [docs/slide-template-instructions.md](docs/slide-template-instructions.md): feature proposal for layout guidance and placeholder writing contracts.
 - [docs/template-library-onboarding.md](docs/template-library-onboarding.md): how to prepare and register templates and slide libraries.
@@ -130,7 +131,7 @@ npm run cli -- run \
   --publish-ttl 24h
 ```
 
-Deck Factory writes `<out>/publish-result.json` and includes the normalized publishing result in the CLI JSON. Use `--publish-required` only when the run should fail if post-QA publishing fails. The deck is preserved either way.
+Deck Factory writes `<out>/publish-result.json` and includes the normalized publishing result in the CLI JSON. Use `--publish-required` only when the run should fail if post-QA publishing fails. The deck is preserved either way. Every successful run also writes `<out>/package-manifest.json`, which classifies `deck.pptx` as the default client handoff and keeps publishing metadata, QA reports, provenance, logs, and screenshots as internal evidence unless an approval package is explicitly requested.
 
 Equivalent environment variables are `DECK_FACTORY_PUBLISH`, `DECK_FACTORY_PUBLISH_REQUIRED`, `DECK_FACTORY_PUBLISH_TTL`, `DECK_FACTORY_PUBLISH_VISIBILITY`, and `DECK_FACTORY_ARTIFACT_GATEWAY_COMMAND`.
 
@@ -145,6 +146,8 @@ artifacts/<subject-slug>-<report-type-slug>-<style-id>/deck.pptx
 Each run also writes internal evidence artifacts in the run directory:
 
 - `run-summary.json`: canonical pass/fail state, gates, blocker findings, repair attempts, and artifact paths
+- `package-manifest.json`: client-handoff boundary, artifact roles, and retention policy
+- `powerpoint-files.json`: explicit PowerPoint file roles for inputs and generated output
 - `template-compliance-report.json`: layout, placeholder, citation, and asset compliance against registered template instructions when present
 - `template-security-report.json`: conservative scan of the selected template deck for external links, embedded objects/media, notes/comments, metadata, and macro indicators
 - `runtime-provenance.json`: OS, Node, Deck Factory version, renderer adapter, rasterizer tool versions, and template font context
