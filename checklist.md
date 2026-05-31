@@ -102,6 +102,18 @@ This checklist consolidates `docs/deck-factory-hardening-slash-goal.md`, `docs/r
 - [x] Do not implement a web server here.
 - [x] Leave a small TODO/extension note only if publishing remains out of scope.
 
+## Work Package 13: Client Delivery Product Acceptance
+
+- [x] Run a human/product review on the `chick-fil-a-5c-publish-smoke` package.
+- [x] Record that the smoke deck is technically valid but not client-delivery
+  ready; see `docs/client-delivery-review-2026-05-31.md`.
+- [ ] Add a first-class product-quality acceptance gate that can fail decks
+  that pass deterministic QA but lack story depth, source lineage, client-ready
+  narrative, speaker-note compliance, or final package polish.
+- [ ] Produce a fresh real client-style deck package that passes render QA,
+  template compliance, source/citation review, product-quality review, and
+  optional private publishing.
+
 ## Required Validation
 
 - [x] `npm install`
